@@ -7,14 +7,15 @@ Jesse Live Addon, control Jesse GUI from terminal
 clone this repo [https://github.com/b1nhm1nh/jesse-live-cli.git]
 run 
 ```
-    git clone https://github.com/b1nhm1nh/jesse-live-cli.git
-    cd 
-    pip3 install -e .
+git clone https://github.com/b1nhm1nh/jesse-live-cli.git
+cd jesse-live-cli
+pip3 install -e .
 ```
 
 ### Create config files
+Make a folder for jesse-cli, it can be a seperate folder of Jesse project.
 
-Create a `server.yml` file in the a new directory, it does not require in the same folder as Jesse project
+Create a `server.yml` file in the root directory,
 
 ```yaml
 ---
@@ -147,29 +148,29 @@ jesse-live-cli start --server_json server.json --routes_json routes.json
 
 Start Jesse
 ```
-    jesse run
+jesse run
 ```
 
 Start a CLI view of Jesse 
 ```
-    jesse-live-cli run
+jesse-live-cli run
 ```
 
 Start Live mode based on `routes` config
 ```
-    jesse-live-cli start
+jesse-live-cli start
 ```
 
 Stop Live mode based on `routes` config
 
 ```
-    jesse-live-cli stop
+jesse-live-cli stop
 ```
 
 Shutdown Live mode based on `routes` config
 
 ```
-    jesse-live-cli shutdown
+jesse-live-cli shutdown
 ```
 
 
