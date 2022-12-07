@@ -14,7 +14,7 @@ run
 
 ### Create config files
 
-Create a `server.yml` file in the root directory, it 
+Create a `server.yml` file in the a new directory, it does not require in the same folder as Jesse project
 
 ```yaml
 ---
