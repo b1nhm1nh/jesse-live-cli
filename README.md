@@ -1,6 +1,7 @@
 # jesse-live-cli
 Jesse Live Addon, control Jesse GUI from terminal
 
+Warning: This is a hack version on Jesse, use it as your own risk.
 
 ### Installing 
 
