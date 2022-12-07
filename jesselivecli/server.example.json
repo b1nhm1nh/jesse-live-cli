@@ -1,0 +1,97 @@
+{
+    "server": {
+      "host": "localhost",
+      "port": 9000,
+      "password": "test"
+    },
+    "config": {
+      "logging": {
+        "order_cancellation": true,
+        "position_opened": true,
+        "position_reduced": true,
+        "position_closed": true,
+        "order_execution": true,
+        "order_submission": true,
+        "trading_candles": true,
+        "balance_update": true,
+        "position_increased": true,
+        "shorter_period_candles": false
+      },
+      "exchanges": {
+        "Binance Perpetual Futures Testnet": {
+          "futures_leverage": "10",
+          "name": "Binance Perpetual Futures Testnet",
+          "balance": 1000,
+          "settlement_currency": "USDT",
+          "futures_leverage_mode": "cross",
+          "fee": 0.006
+        },
+        "Binance Perpetual Futures": {
+          "futures_leverage": "10",
+          "name": "Binance Perpetual Futures",
+          "balance": 1000,
+          "settlement_currency": "USDT",
+          "futures_leverage_mode": "cross",
+          "fee": 0.006
+        },
+        "Bybit USDT Perpetual": {
+          "futures_leverage": 2,
+          "name": "Bybit USDT Perpetual",
+          "balance": 10000,
+          "settlement_currency": "USDT",
+          "futures_leverage_mode": "cross",
+          "fee": 0.001
+        },
+        "Bitget USDT Perpetual": {
+          "futures_leverage": 2,
+          "name": "Bitget USDT Perpetual",
+          "balance": 10000,
+          "futures_leverage_mode": "cross",
+          "fee": 0.0006
+        },
+        "Binance Spot": {
+          "futures_leverage": 2,
+          "name": "Binance Spot",
+          "balance": 10000,
+          "settlement_currency": "USDT",
+          "futures_leverage_mode": "cross",
+          "fee": 0.001
+        },
+        "Bybit USDT Perpetual Testnet": {
+          "futures_leverage": 2,
+          "name": "Bybit USDT Perpetual Testnet",
+          "balance": 10000,
+          "settlement_currency": "USDT",
+          "futures_leverage_mode": "cross",
+          "fee": 0.001
+        },
+        "Binance US Spot": {
+          "futures_leverage": 2,
+          "name": "Binance US Spot",
+          "balance": 10000,
+          "settlement_currency": "USDT",
+          "futures_leverage_mode": "cross",
+          "fee": 0.001
+        }
+      },
+      "persistency": true,
+      "notifications": {
+        "enabled": true,
+        "position_report_timeframe": "1h",
+        "events": {
+          "executed_orders": true,
+          "errors": true,
+          "submitted_orders": false,
+          "terminated_session": true,
+          "started_session": true,
+          "opened_position": true,
+          "cancelled_orders": false,
+          "updated_position": true
+        }
+      },
+      "warm_up_candles": 200,
+      "generate_candles_from_1m": false
+    },
+    "debug_mode": true,
+    "paper_mode": true
+  }

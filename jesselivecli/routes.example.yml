@@ -1,0 +1,28 @@
+routes:
+- exchange: Binance Perpetual Futures
+  symbol: ETH-USDT
+  timeframe: 1m
+  strategy: ExampleStrategy
+- exchange: Binance Perpetual Futures
+  symbol: BNB-USDT
+  timeframe: 1m
+  strategy: ExampleStrategy
+extra_routes:
+- exchange: Binance Perpetual Futures
+  symbol: ETH-USDT
+  timeframe: 5m
+- exchange: Binance Perpetual Futures
+  symbol: ETH-USDT
+  timeframe: 15m
+- exchange: Binance Perpetual Futures
+  symbol: ETH-USDT
+  timeframe: 30m
+- exchange: Binance Perpetual Futures
+  symbol: BNB-USDT
+  timeframe: 5m
+- exchange: Binance Perpetual Futures
+  symbol: BNB-USDT
+  timeframe: 15m
+- exchange: Binance Perpetual Futures
+  symbol: BNB-USDT
+  timeframe: 30m  
