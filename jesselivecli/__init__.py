@@ -419,7 +419,7 @@ async def run_live_cli(server_yaml, routes_yaml, server_json, routes_json, defau
                     tables.append(refresh_log_messages(log))
                     layout["right"].update(Columns(tables, expand=True))
                     live.refresh()
-                    # await asyncio.sleep(.5)  # Allow other tasks to run
+
             except websockets.ConnectionClosed:
                 log.append("Websocket disconnected")
 

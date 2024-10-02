@@ -152,9 +152,15 @@ Start Jesse
 jesse run
 ```
 
+Start a Websocket proxy server first
+```
+jesse-live-cli proxy --listen_port
+```
+Config routes & server config, connect to Websocket proxy port above
+
 Start a CLI view of Jesse 
 ```
-jesse-live-cli run
+jesse-live-cli run 
 ```
 
 Start Live mode based on `routes` config
@@ -168,10 +174,10 @@ Stop Live mode based on `routes` config
 jesse-live-cli stop
 ```
 
-Shutdown Live mode based on `routes` config
+Restart Live mode based on `routes` config
 
 ```
-jesse-live-cli shutdown
+jesse-live-cli restart
 ```
 
 
