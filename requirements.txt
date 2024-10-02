@@ -1,4 +1,4 @@
 #asyncio
 click~=8.0.3
-rich~=12.6.0
-PyYAML~=5.3.1
+rich~=13.7.1
+PyYAML~=5.4.1
