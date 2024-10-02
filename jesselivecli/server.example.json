@@ -5,93 +5,150 @@
       "password": "test"
     },
     "config": {
-      "logging": {
-        "order_cancellation": true,
-        "position_opened": true,
-        "position_reduced": true,
-        "position_closed": true,
-        "order_execution": true,
-        "order_submission": true,
-        "trading_candles": true,
-        "balance_update": true,
-        "position_increased": true,
-        "shorter_period_candles": false
-      },
-      "exchanges": {
-        "Binance Perpetual Futures Testnet": {
-          "futures_leverage": "10",
-          "name": "Binance Perpetual Futures Testnet",
-          "balance": 1000,
-          "settlement_currency": "USDT",
-          "futures_leverage_mode": "cross",
-          "fee": 0.006
-        },
-        "Binance Perpetual Futures": {
-          "futures_leverage": "10",
-          "name": "Binance Perpetual Futures",
-          "balance": 1000,
-          "settlement_currency": "USDT",
-          "futures_leverage_mode": "cross",
-          "fee": 0.006
-        },
-        "Bybit USDT Perpetual": {
-          "futures_leverage": 2,
-          "name": "Bybit USDT Perpetual",
-          "balance": 10000,
-          "settlement_currency": "USDT",
-          "futures_leverage_mode": "cross",
-          "fee": 0.001
-        },
-        "Bitget USDT Perpetual": {
-          "futures_leverage": 2,
-          "name": "Bitget USDT Perpetual",
-          "balance": 10000,
-          "futures_leverage_mode": "cross",
-          "fee": 0.0006
-        },
-        "Binance Spot": {
-          "futures_leverage": 2,
-          "name": "Binance Spot",
-          "balance": 10000,
-          "settlement_currency": "USDT",
-          "futures_leverage_mode": "cross",
-          "fee": 0.001
-        },
-        "Bybit USDT Perpetual Testnet": {
-          "futures_leverage": 2,
-          "name": "Bybit USDT Perpetual Testnet",
-          "balance": 10000,
-          "settlement_currency": "USDT",
-          "futures_leverage_mode": "cross",
-          "fee": 0.001
-        },
-        "Binance US Spot": {
-          "futures_leverage": 2,
-          "name": "Binance US Spot",
-          "balance": 10000,
-          "settlement_currency": "USDT",
-          "futures_leverage_mode": "cross",
-          "fee": 0.001
-        }
+      "notifications": {
+          "position_report_timeframe": "1h",
+          "enabled": true,
+          "events": {
+              "errors": true,
+              "updated_position": true,
+              "started_session": true,
+              "terminated_session": true,
+              "cancelled_orders": true,
+              "executed_orders": true,
+              "opened_position": true,
+              "submitted_orders": true
+          }
       },
       "persistency": true,
-      "notifications": {
-        "enabled": true,
-        "position_report_timeframe": "1h",
-        "events": {
-          "executed_orders": true,
-          "errors": true,
-          "submitted_orders": false,
-          "terminated_session": true,
-          "started_session": true,
-          "opened_position": true,
-          "cancelled_orders": false,
-          "updated_position": true
-        }
+      "generate_candles_from_1m": false,
+      "exchanges": {
+          "Apex Pro Perpetual": {
+              "fee": 0.0005,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Apex Pro Perpetual",
+              "balance": 10000
+          },
+          "Binance Spot": {
+              "fee": 0.001,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Binance Spot",
+              "balance": 10000
+          },
+          "Apex Pro Perpetual Testnet": {
+              "fee": 0.0005,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Apex Pro Perpetual Testnet",
+              "balance": 10000
+          },
+          "Binance Perpetual Futures": {
+              "fee": 0.0004,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Binance Perpetual Futures",
+              "balance": 10000
+          },
+          "Bybit Spot Testnet": {
+              "fee": 0.001,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Bybit Spot Testnet",
+              "balance": 10000
+          },
+          "Binance Perpetual Futures Testnet": {
+              "fee": 0.0004,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Binance Perpetual Futures Testnet",
+              "balance": 10000
+          },
+          "Dydx Perpetual": {
+              "fee": 0.0005,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Dydx Perpetual",
+              "balance": 10000
+          },
+          "Bybit USDT Perpetual": {
+              "fee": 0.00055,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Bybit USDT Perpetual",
+              "balance": 10000
+          },
+          "Dydx Perpetual Testnet": {
+              "fee": 0.0005,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Dydx Perpetual Testnet",
+              "balance": 10000
+          },
+          "Bitget USDT Perpetual": {
+              "fee": 0.0006,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Bitget USDT Perpetual",
+              "balance": 10000
+          },
+          "Bybit USDC Perpetual Testnet": {
+              "fee": 0.00055,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Bybit USDC Perpetual Testnet",
+              "balance": 10000
+          },
+          "Bybit USDC Perpetual": {
+              "fee": 0.00055,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Bybit USDC Perpetual",
+              "balance": 10000
+          },
+          "Coinbase Spot": {
+              "fee": 0.0003,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Coinbase Spot",
+              "balance": 10000
+          },
+          "Binance US Spot": {
+              "fee": 0.001,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Binance US Spot",
+              "balance": 10000
+          },
+          "Bybit Spot": {
+              "fee": 0.001,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Bybit Spot",
+              "balance": 10000
+          },
+          "Bybit USDT Perpetual Testnet": {
+              "fee": 0.00055,
+              "futures_leverage": 2,
+              "futures_leverage_mode": "cross",
+              "name": "Bybit USDT Perpetual Testnet",
+              "balance": 10000
+          }
       },
-      "warm_up_candles": 200,
-      "generate_candles_from_1m": false
-    },
-    "debug_mode": true,
-    "paper_mode": true
-  }
+      "logging": {
+          "position_reduced": true,
+          "position_opened": true,
+          "position_increased": true,
+          "order_cancellation": true,
+          "trading_candles": true,
+          "order_submission": true,
+          "balance_update": true,
+          "position_closed": true,
+          "order_execution": true,
+          "shorter_period_candles": false
+      },
+      "warm_up_candles": 200
+  },
+  "debug_mode": true,
+  "paper_mode": true
+}

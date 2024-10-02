@@ -1,47 +1,31 @@
 {
+  "id" : "ee070082-dd70-46e0-bb17-66128a1b2ff5",
+  "exchange": "Binance Perpetual Futures",
+  "exchange_api_key_id": "",
+  "notification_api_key_id": "",
   "routes": [
     {
-      "exchange": "Binance Perpetual Futures",
       "symbol": "ETH-USDT",
       "timeframe": "1m",
       "strategy": "ExampleStrategy"
     },
     {
-      "exchange": "Binance Perpetual Futures",
       "symbol": "BNB-USDT",
       "timeframe": "1m",
       "strategy": "ExampleStrategy"
     }
   ],
-  "extra_routes": [
+  "data_routes": [
     {
-      "exchange": "Binance Perpetual Futures",
       "symbol": "ETH-USDT",
       "timeframe": "5m"
     },
     {
-      "exchange": "Binance Perpetual Futures",
       "symbol": "ETH-USDT",
       "timeframe": "15m"
     },
     {
-      "exchange": "Binance Perpetual Futures",
       "symbol": "ETH-USDT",
-      "timeframe": "30m"
-    },
-    {
-      "exchange": "Binance Perpetual Futures",
-      "symbol": "BNB-USDT",
-      "timeframe": "5m"
-    },
-    {
-      "exchange": "Binance Perpetual Futures",
-      "symbol": "BNB-USDT",
-      "timeframe": "15m"
-    },
-    {
-      "exchange": "Binance Perpetual Futures",
-      "symbol": "BNB-USDT",
       "timeframe": "30m"
     }
   ]
