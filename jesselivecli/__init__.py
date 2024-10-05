@@ -53,31 +53,35 @@ def timestamp_to_date(timestamp) -> str:
     if type(timestamp) == str:
         timestamp = int(timestamp)
 
-    return str(arrow.get(timestamp))[:]    
+    return str(arrow.get(timestamp))    
 
 def get_config(config_filename: str) -> Dict:
-
     cfg_file = pathlib.Path(config_filename)
     if not cfg_file.is_file():
         print(f"{config_filename} not found")
-        exit()
+        return None  # Return None if the file is not found
     else:
         with open(config_filename, "r") as ymlfile:
-            cfg = yaml.load(ymlfile, yaml.SafeLoader)
-
-    return cfg
+            try:
+                cfg = yaml.load(ymlfile, yaml.SafeLoader)
+                return cfg
+            except yaml.YAMLError as e:
+                print(f"Error loading YAML file {config_filename}: {e}")
+                return None  # Return None if there's an error loading the file
 
 def get_config_json(config_filename: str) -> Dict:
-
     cfg_file = pathlib.Path(config_filename)
     if not cfg_file.is_file():
         print(f"{config_filename} not found")
-        exit()
+        return None  # Return None if the file is not found
     else:
         with open(config_filename, "r") as jsonfile:
-            cfg = json.load(jsonfile)
-
-    return cfg
+            try:
+                cfg = json.load(jsonfile)
+                return cfg
+            except json.JSONDecodeError as e:
+                print(f"Error loading JSON file {config_filename}: {e}")
+                return None  # Return None if there's an error loading the file
 
 def refresh_infos(infos: Dict, host: str = "") -> Table:
     """Show General Info"""
@@ -259,170 +263,335 @@ def refresh_data():
     pass
 
 
-async def run_live_cli(server_yaml, routes_yaml, server_json, routes_json, default_id: str = ""):
-    id_list = []
-    current_tab = 0
-    running = True
+class JesseLiveCLI:
+    def __init__(self, server_yaml, routes_yaml, server_json, routes_json, default_id: str = ""):
+        self.server_yaml = server_yaml
+        self.routes_yaml = routes_yaml
+        self.server_json = server_json
+        self.routes_json = routes_json
+        self.default_id = default_id
+        self.id_list = []
+        self.current_tab = 0
+        self.running = True
+        self.console = Console()
+        self.layout = Layout()
+        self.log = []
+        self.candles = []
+        self.infos = {}
+        self.watch_list = []
+        self.orders = []
+        self.routes = []
+        self.positions = []
 
-    # async def handle_input():
-    #     global running
-    #     while running:
-    #         key = await asyncio.to_thread(Prompt.ask, "Enter tab number (0-9)")
-    #         if key == "q":
-    #             running = False
-    #         if key.isdigit() and 0 <= int(key) <= 9:
-    #             current_tab = int(key) - 1
-    #             if current_tab >= len(id_list):
-    #                 current_tab = 0
-    #         await asyncio.sleep(0.1)  # Small delay to prevent high CPU usage        
+    async def run(self):
+        self.setup_layout()
+        # cfg = self.get_config(self.server_yaml, self.server_json)
+        cfg = get_config(self.server_yaml) if self.server_json == '' else get_config_json(self.server_json)
+        if cfg is None:
+            print("Failed to load configuration.")
+            return  # Exit the run method if configuration loading fails
 
-    # Get the routes, set the default id to the first route id
-    routes = get_config(routes_yaml) if routes_json == '' else get_config_json(routes_json)
-    route_id = routes["id"]
-    if default_id == "":
-        default_id = route_id
+        # data = cfg.get("server")
+        data = cfg["server"]
+        if data is None:
+            print("Server configuration is missing.")
+            return  # Exit the run method if server configuration is missing
 
-    global round_digits_dict
+        connection = generate_ws_url(data['host'], data['port'], data['password'])
 
-    for route in routes["routes"]:
-        if "round_digits" in route:
-            round_digits_dict[route["symbol"]] = route["round_digits"]
-
-    layout = Layout()
-
-    layout.split_row(
-        Layout(name="left"),
-        Layout(name="right"),
-    )
-
-    layout["left"].ratio = 1
-    console = Console()
-
-    log = []
-    candles = []
-    infos = {}
-    watch_list = []
-    orders = []
-    routes = []
-    positions = []
-
-    cfg = get_config(server_yaml) if server_json == '' else get_config_json(server_json)
-    data = cfg["server"]
-    connection = generate_ws_url(data['host'], data['port'], data['password'])
-
-    host = data['host'] + ":" + str(data['port'])
-
-    with Live(layout, console=console, screen=True, auto_refresh=False) as live:
         async with websockets.connect(connection) as websocket:
-        # async for websocket in websockets.connect(connection):
-            try:
-                # Run the main loop
-                if websocket.open:
-                  log.append("[green][Info]Connection established")
+            await self.main_loop(websocket, data['host'], data['port'])
 
-                tables = []
-                tables.append(refresh_infos(infos, host))
-                layout["left"].update(Columns(tables, expand=True))
-                tables = []
-                tables.append(refresh_log_messages(log))
-                layout["right"].update(Columns(tables, expand=True))
-                live.refresh()                
-                while running:
+    def setup_layout(self):
+        self.layout.split_row(
+            Layout(name="left"),
+            Layout(name="right"),
+        )
+        self.layout["left"].ratio = 1
+
+    def get_config(self, yaml_file, json_file):
+        # Implement the logic to get configuration from YAML or JSON
+        pass
+
+    def generate_ws_url(self, host: str, port: str, password: str) -> str:
+        # Implement the logic to generate WebSocket URL
+        pass
+
+    async def main_loop(self, websocket, host, port):
+        with Live(self.layout, console=self.console, screen=True, auto_refresh=False) as live:
+            try:
+                if websocket.open:
+                    self.log.append("[green][Info]Connection established")
+
+                self.update_layout(host, port)
+                live.refresh()
+
+                while self.running:
                     if not websocket.open:
-                        log.append("Connection closed")
-                        websocket = await websockets.connect(connection)
+                        self.log.append("Connection closed")
+                        websocket = await websockets.connect(f"ws://{host}:{port}")
                         break
                     else:
                         response = await websocket.recv()
+                        await self.process_response(response)
 
-                        data = json.loads(response)
-                        id = data['id']
-                        if default_id == "":
-                            default_id = id
-                        if id not in id_list:
-                            id_list.append(id)
-
-                        
-                        event_info = data['event'].split(".")
-                        event = ""
-                        event_trading_mode = ""
-
-                        
-                        if len(event_info) == 2:
-                          event = event_info[1]
-                          event_trading_mode = event_info[0]
-
-                        # other IDs
-                        if id != default_id:
-                            # if not (event == 'watch_list' or event == 'positions' or event == 'orders' or event == 'general_info' or event == 'current_candles'):
-                            #     log.append(response)
-                            continue                        
-
-
-                        if event == 'info_log':
-                            _log = data['data']
-                            messages = _log['message'].split("\n")
-                            log.append(f"[green][Info][{timestamp_to_date(_log['timestamp'])}][white] {messages[0]}")
-                            for message in messages[1:]:
-                                log.append(f"{message}")
-                        elif event == 'error_log':
-                            _log = data['data']
-                            messages = _log['message'].split("\n")
-                            log.append(f"[red][Error][{timestamp_to_date(_log['timestamp'])}][white] {messages[0]}")
-                            for message in messages[1:]:
-                                log.append(f"{message}")
-                        elif event == 'exception':
-                            _log = data['data']
-                            log.append(f"[yellow]Exception: [white] {_log['error']}")  #{timestamp_to_date(_log['timestamp'])}
-                        elif event == 'termination':
-                            log.append(f"[yellow]Trade {event_trading_mode} Termination")
-                            candles = []
-                            positions = []
-                            #running = False
-                        elif event == 'unexpectedTermination':
-                            _log = data['data']
-                            log.append(f"[yellow]Unexpected Termination: [white] {_log['message']}")
-                            candles = []
-                            positions = []
-
-                        elif event == "progressbar":
-                            _info = data['data']
-                            log.append(f"Loading data: {_info['current']}% in {_info['estimated_remaining_seconds']:.2f}s")
-                            
-                        elif event == 'current_candles':
-                            candles = data['data']
-                        elif event == 'positions':
-                            positions = data['data']
-                        elif event == 'general_info':
-                            infos = data['data']
-                            routes = infos['routes']
-                        elif event == 'watch_list':
-                            watch_list = data['data']
-                        elif event == 'orders':
-                            orders = data['data']
-                        else:
-
-                            log.append(response)
-                        # log.append(response)
-
-                    tables = []
-
-                    tables.append(refresh_infos(infos, host + ". Session " + str(current_tab + 1) + "/" + str(len(id_list)) + ". ID: " + str(id)))
-                    tables.append(refresh_routes(routes))
-                    
-                    tables.append(refresh_candles(candles, 6))
-                    tables.append(refresh_positions(positions))
-                    tables.append(refresh_orders(orders))
-                    layout["left"].update(Columns(tables, expand=True))
-                    tables = []
-                    tables.append(refresh_watch_list(watch_list))
-                    tables.append(refresh_log_messages(log))
-                    layout["right"].update(Columns(tables, expand=True))
+                    self.update_layout(host, port)
                     live.refresh()
 
             except websockets.ConnectionClosed:
-                log.append("Websocket disconnected")
+                self.log.append("Websocket disconnected")
 
+    async def process_response(self, response):
+        data = json.loads(response)
+        id = data['id']
+        if self.default_id == "":
+            self.default_id = id
+        if id not in self.id_list:
+            self.id_list.append(id)
+
+        event_info = data['event'].split(".")
+        event = event_info[1] if len(event_info) == 2 else ""
+        event_trading_mode = event_info[0] if len(event_info) == 2 else ""
+
+        if id != self.default_id:
+            return
+
+        # Process different events
+        if event == 'info_log':
+            self.handle_info_log(data)
+        elif event == 'error_log':
+            self.handle_error_log(data)
+        elif event == 'exception':
+            self.handle_exception(data)
+        elif event == 'termination':
+            self.handle_termination(event_trading_mode)
+        elif event == 'unexpectedTermination':
+            self.handle_unexpected_termination(data)
+        elif event == "progressbar":
+            self.handle_progressbar(data)
+        elif event == 'current_candles':
+            self.candles = data['data']
+        elif event == 'positions':
+            self.positions = data['data']
+        elif event == 'general_info':
+            self.infos = data['data']
+            self.routes = self.infos['routes']
+        elif event == 'watch_list':
+            self.watch_list = data['data']
+        elif event == 'orders':
+            self.orders = data['data']
+        else:
+            self.log.append(response)
+
+    def handle_info_log(self, data):
+        _log = data['data']
+        messages = _log['message'].split("\n")
+        self.log.append(f"[green][Info][{self.timestamp_to_date(_log['timestamp'])}][white] {messages[0]}")
+        for message in messages[1:]:
+            self.log.append(f"{message}")
+
+    def handle_error_log(self, data):
+        _log = data['data']
+        messages = _log['message'].split("\n")
+        self.log.append(f"[red][Error][{self.timestamp_to_date(_log['timestamp'])}][white] {messages[0]}")
+        for message in messages[1:]:
+            self.log.append(f"{message}")
+
+    def handle_exception(self, data):
+        _log = data['data']
+        self.log.append(f"[yellow]Exception: [white] {_log['error']}")
+
+    def handle_termination(self, event_trading_mode):
+        self.log.append(f"[yellow]Trade {event_trading_mode} Termination")
+        self.candles = []
+        self.positions = []
+
+    def handle_unexpected_termination(self, data):
+        _log = data['data']
+        self.log.append(f"[yellow]Unexpected Termination: [white] {_log['message']}")
+        self.candles = []
+        self.positions = []
+
+    def handle_progressbar(self, data):
+        _info = data['data']
+        self.log.append(f"Loading data: {_info['current']}% in {_info['estimated_remaining_seconds']:.2f}s")
+
+    def update_layout(self, host, port):
+        tables = []
+        tables.append(self.refresh_infos(self.infos, f"{host}:{port}. Session {self.current_tab + 1}/{len(self.id_list)}. ID: {self.default_id}"))
+        tables.append(self.refresh_routes(self.routes))
+        tables.append(self.refresh_candles(self.candles, 6))
+        tables.append(self.refresh_positions(self.positions))
+        tables.append(self.refresh_orders(self.orders))
+        self.layout["left"].update(Columns(tables, expand=True))
+
+        tables = []
+        tables.append(self.refresh_watch_list(self.watch_list))
+        tables.append(self.refresh_log_messages(self.log))
+        self.layout["right"].update(Columns(tables, expand=True))
+
+    def refresh_infos(self, infos: Dict, host: str = "") -> Table:
+        """Show General Info"""
+        table = Table(title="Jesse Live CLI at " + host, expand=True)
+        table.add_column("Started time /\nNow")
+        table.add_column("Balance/ \nCurrent")
+        table.add_column("Debug /\nPaper", justify="center")
+        table.add_column("Infos /\nErrors", justify="center")
+        table.add_column("Win /\nTotal", justify="center")
+        table.add_column("PNL")
+        table.add_column("PNL %")
+        
+        values = []
+        data = {info: infos[info] for info in infos}
+        start_time = self.timestamp_to_date(data.get("started_at"))
+        current_time = self.timestamp_to_date(data.get("current_time"))
+        values.append(f"{start_time} {current_time}") 
+        values.append(f"{data.get('started_balance')} / {data.get('current_balance')}")
+        values.append(f"{data.get('debug_mode')} / {data.get('paper_mode')}")
+        values.append(f"{data.get('count_info_logs')} / {data.get('count_error_logs')}")
+        values.append(f"{data.get('count_winning_trades')} / {data.get('count_trades')}")
+        values.append(f"{data.get('pnl')}")     
+        values.append(f"{data.get('pnl_perc')}")   
+
+        table.add_row(*values)
+        return table
+
+    def refresh_log_messages(self, messages: List[str]) -> Table:
+        """Show log tail"""
+        table = Table(title="Log messages", expand=True)
+        table.add_column("Log")
+        for msg in messages[-16:]:
+            table.add_row(msg)
+        return table
+
+    def refresh_candles(self, candles: List[str], round_digits: int = 2) -> Table:
+        """Show Route & Candles table"""
+        table = Table(title="Route & Candles", expand=True)
+        table.add_column("Symbol")
+        table.add_column("Open", justify="right")
+        table.add_column("Close", justify="right")
+        table.add_column("High", justify="right")
+        table.add_column("Low", justify="right")
+        table.add_column("Volume", justify="right")
+
+        for symbol in candles:
+            candle_round_digits = round_digits_dict.get(symbol, round_digits)
+            candle = candles[symbol]
+            color = "[green]" if candle['open'] < candle['close'] else "[red]"
+
+            values = [
+                symbol,
+                f"{color}{candle['open']:.{candle_round_digits}f}",
+                f"{color}{candle['close']:.{candle_round_digits}f}",
+                f"{color}{candle['high']:.{candle_round_digits}f}",
+                f"{color}{candle['low']:.{candle_round_digits}f}",
+                f"{color}{candle['volume']:.{round_digits}f}"
+            ]
+            table.add_row(*values)
+        return table
+
+    def refresh_positions(self, positions: List[str]) -> Table:
+        """Show Position table"""
+        table = Table(title="Positions", expand=True)
+        table.add_column("Symbol")
+        table.add_column("Strategy")
+        table.add_column("Leverage")
+        table.add_column("QTY", justify="right")
+        table.add_column("Entry ", justify="right")
+        table.add_column("Current Price", justify="right")
+        table.add_column("PNL", justify="right")
+        table.add_column("PNL %", justify="right")
+
+        for position in positions:
+            color = "[green]" if position['pnl'] > 0 else "[red]"
+            values = [
+                position['symbol'],
+                position['strategy_name'],
+                f"{position['leverage']:d}",
+                f"{color}{position['qty']:.2f}" if position['type'] != 'close' else "",
+                f"{position['entry']:.2f}" if position['type'] != 'close' else "",
+                f"{position['current_price']:.2f}",
+                f"{color}{position['pnl']:.2f}" if position['type'] != 'close' else "",
+                f"{color}{position['pnl_perc']:.2f}" if position['type'] != 'close' else ""
+            ]
+            table.add_row(*values)
+        return table
+
+    def refresh_watch_list(self, watch_list: List[Dict]) -> Table:
+        table = Table(title="Watch List", expand=True)
+        table.add_column("Info")
+        table.add_column("Data", justify="right", style="green")
+
+        for key,value in watch_list:
+            values = []
+            values.append(key)       
+            values.append(value)  
+            table.add_row(*values)            
+        # """Show Watch List"""
+        # table = Table(title="Watch List", expand=True)
+        # table.add_column("Info")
+        # table.add_column("Data", justify="right", style="green")
+
+        # for item in watch_list:
+        #     # Assuming each item in the list is a dictionary with 'info' and 'data' keys
+        #     info = item.get('info', 'N/A')
+        #     data = item.get('data', 'N/A')
+        #     table.add_row(info, data)
+        return table
+
+    def refresh_routes(self, routes: Dict) -> Table:
+        """Show Route"""
+        table = Table(title="Routes", expand=True)
+        table.add_column("Symbol", justify="right")
+        table.add_column("Timeframe", justify="left")
+        table.add_column("Strategy", justify="left")
+
+        for route in routes:
+            values = [
+                route['symbol'],
+                route['timeframe'],
+                route['strategy']
+            ]
+            table.add_row(*values)
+        return table
+
+    def refresh_orders(self, orders: Dict) -> Table:
+        """Show Orders"""
+        table = Table(title="Orders", expand=True)
+        table.add_column("Symbol")
+        table.add_column("Type")
+        table.add_column("Side")
+        table.add_column("QTY")
+        table.add_column("Price")
+        table.add_column("Status")
+        table.add_column("created_at")
+
+        for order in orders:
+            color = "[green]" if order['side'] == 'buy' else "[red]"
+            values = [
+                f"{color}{order['symbol']}",
+                f"{color}{order['type']}",
+                f"{color}{order['side']}",
+                f"{color}{order['qty']:.2f}",
+                f"{color}{order['price']:.2f}",
+                f"{color}{order['status']}",
+                f"{color}{self.timestamp_to_date(order['created_at'])}"
+            ]
+            table.add_row(*values)
+        return table
+
+    def timestamp_to_date(self, timestamp) -> str:
+        """Convert timestamp to date string"""
+        if timestamp is None:
+            return ''
+        if isinstance(timestamp, str):
+            timestamp = int(timestamp)
+        return str(arrow.get(timestamp))
+
+# Example usage
+async def run_live_cli(server_yaml, routes_yaml, server_json, routes_json, default_id: str = ""):
+    cli = JesseLiveCLI(server_yaml, routes_yaml, server_json, routes_json, default_id)
+    await cli.run()
 
 async def start_jesse(server_yaml, routes_yaml, server_json, routes_json):
     import aiohttp
