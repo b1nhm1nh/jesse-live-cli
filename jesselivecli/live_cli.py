@@ -1,193 +1,111 @@
+from rich.syntax import Syntax
+from rich.traceback import Traceback
+from textual.app import App, ComposeResult
+from textual.widgets import DirectoryTree, Footer, Header, Static, Button, Label, DataTable
+from textual.screen import Screen
+from textual.reactive import Reactive
+from textual.containers import Container, Horizontal, VerticalScroll, HorizontalScroll, Vertical
+from textual.message import Message
+from textual.reactive import var
+from textual import work
+from rich.text import Text
+import sys
 import asyncio
-import aioconsole
-from rich.prompt import Prompt
-import websockets
-import click
-
-from rich.layout import Layout
-from rich.live import Live
-from rich.console import Console
-from rich.table import Table
-from rich.columns import Columns
-from typing import List, Dict
-
-import time
 import json
-
+import websockets
+from typing import List, Dict, Optional
+from jesselivecli.utils import load_config, timestamp_to_date, generate_ws_url
+from rich.logging import RichHandler
+import logging
 import os
-import jesse.helpers as jh
-import pathlib
-import yaml
-import arrow
+from datetime import datetime
+from textual.binding import Binding
 
-from jesselivecli.utils import get_config, get_config_json, generate_ws_url
+# Define a custom message for button activation
+class ButtonActivatedMessage(Message):
+    def __init__(self, sender, button_id: str):
+        super().__init__()
+        self.button_id = button_id
 
-class JesseLiveCLI:
-    def __init__(self, server_yaml, routes_yaml, server_json, routes_json, default_id: str = ""):
-        self.server_yaml = server_yaml
-        self.routes_yaml = routes_yaml
-        self.server_json = server_json
-        self.routes_json = routes_json
-        self.default_id = default_id
-        self.id_list = []
-        self.current_tab = 0
-        self.running = True
-        self.console = Console()
-        self.layout = Layout()
-        self.log = []
-        self.candles = []
-        self.infos = {}
-        self.watch_list = []
-        self.orders = []
-        self.routes = []
-        self.positions = []
+# Define a custom message for button activation
+class RouteSelectMessage(Message):
+    def __init__(self, sender, file_path: str):
+        super().__init__()
+        self.file_path = file_path        
 
-    async def run(self):
-        self.setup_layout()
-        # cfg = self.get_config(self.server_yaml, self.server_json)
-        cfg = get_config(self.server_yaml) if self.server_json == '' else get_config_json(self.server_json)
-        if cfg is None:
-            print("Failed to load configuration.")
-            return  # Exit the run method if configuration loading fails
+class SessionSelectMessage(Message):
+    def __init__(self, sender, session_id: str):
+        super().__init__()
+        self.session_id = session_id
 
-        # data = cfg.get("server")
-        data = cfg["server"]
-        if data is None:
-            print("Server configuration is missing.")
-            return  # Exit the run method if server configuration is missing
+# Define separate screens for each button
+class HomeScreen(Screen):
+    def compose(self) -> ComposeResult:
+        yield Label("Home Content")
+        yield Footer()
 
-        connection = generate_ws_url(data['host'], data['port'], data['password'])
+class StrategiesScreen(Screen):
+    show_tree = var(True)
+    
+    # def watch_show_tree(self, show_tree: bool) -> None:
+    #     self.set_class(show_tree, "-show-tree")
+                
+    # def compose(self) -> ComposeResult:
+    #     path = "./strategies/" 
+    #     yield Label("Strategies Content")
+    #     with Container():
+    #         yield DirectoryTree(path, id="tree-view")
+    #         with Vertical():     
+    #             with VerticalScroll(id="code-view"):
+    #                 yield Static(id="code", expand=True)
+    #     yield Footer()        
+    # def on_mount(self) -> None:
+    #     self.query_one(DirectoryTree).focus()
 
-        async with websockets.connect(connection) as websocket:
-            await self.main_loop(websocket, data['host'], data['port'])
+    # def on_directory_tree_file_selected(
+    #     self, event: DirectoryTree.FileSelected
+    # ) -> None:
+    #     event.stop()
+    #     code_view = self.query_one("#code", Static)
+    #     try:
+    #         syntax = Syntax.from_path(
+    #             str(event.path),
+    #             line_numbers=True,
+    #             word_wrap=True,
+    #             indent_guides=True,
+    #             theme="github-dark",
+    #         )
+    #         self.send_file_path_to_main_app(event)
+    #     except Exception:
+    #         code_view.update(Traceback(theme="github-dark", width=None))
+    #         self.sub_title = "ERROR"
+    #     else:
+    #         code_view.update(syntax)
+    #         self.query_one("#code-view").scroll_home(animate=False)
+    #         self.sub_title = str(event.path)
+    #         
+    # def send_file_path_to_main_app(self, event: DirectoryTree.FileSelected) -> None:
+    #     self.post_message(RouteSelectMessage(self, event.path ))
 
-    def setup_layout(self):
-        self.layout.split_row(
-            Layout(name="left"),
-            Layout(name="right"),
-        )
-        self.layout["left"].ratio = 1
+    # def action_toggle_files(self) -> None:
+    #     self.show_tree = not self.show_tree   
 
-    def generate_ws_url(self, host: str, port: str, password: str) -> str:
-        # Implement the logic to generate WebSocket URL
-        pass
+class ImportCandlesScreen(Screen):
+    def compose(self) -> ComposeResult:
+        yield Label("Import Candles Content")
+        yield Footer()        
 
-    async def main_loop(self, websocket, host, port):
-        with Live(self.layout, console=self.console, screen=True, auto_refresh=False) as live:
-            try:
-                if websocket.open:
-                    self.log.append("[green][Info]Connection established")
+class BacktestScreen(Screen):
+    def compose(self) -> ComposeResult:
+        yield Label("Backtest Content")
+        yield Footer()        
 
-                self.update_layout(host, port)
-                live.refresh()
+class OptimizationScreen(Screen):
+    def compose(self) -> ComposeResult:
+        yield Label("Optimization Content")
+        yield Footer()        
 
-                while self.running:
-                    if not websocket.open:
-                        self.log.append("Connection closed")
-                        websocket = await websockets.connect(f"ws://{host}:{port}")
-                        break
-                    else:
-                        response = await websocket.recv()
-                        await self.process_response(response)
-
-                    self.update_layout(host, port)
-                    live.refresh()
-
-            except websockets.ConnectionClosed:
-                self.log.append("Websocket disconnected")
-
-    async def process_response(self, response):
-        data = json.loads(response)
-        id = data['id']
-        if self.default_id == "":
-            self.default_id = id
-        if id not in self.id_list:
-            self.id_list.append(id)
-
-        event_info = data['event'].split(".")
-        event = event_info[1] if len(event_info) == 2 else ""
-        event_trading_mode = event_info[0] if len(event_info) == 2 else ""
-
-        if id != self.default_id:
-            return
-
-        # Process different events
-        if event == 'info_log':
-            self.handle_info_log(data)
-        elif event == 'error_log':
-            self.handle_error_log(data)
-        elif event == 'exception':
-            self.handle_exception(data)
-        elif event == 'termination':
-            self.handle_termination(event_trading_mode)
-        elif event == 'unexpectedTermination':
-            self.handle_unexpected_termination(data)
-        elif event == "progressbar":
-            self.handle_progressbar(data)
-        elif event == 'current_candles':
-            self.candles = data['data']
-        elif event == 'positions':
-            self.positions = data['data']
-        elif event == 'general_info':
-            self.infos = data['data']
-            self.routes = self.infos['routes']
-        elif event == 'watch_list':
-            self.watch_list = data['data']
-        elif event == 'orders':
-            self.orders = data['data']
-        else:
-            self.log.append(response)
-
-    def handle_info_log(self, data):
-        _log = data['data']
-        messages = _log['message'].split("\n")
-        self.log.append(f"[green][Info][{self.timestamp_to_date(_log['timestamp'])}][white] {messages[0]}")
-        for message in messages[1:]:
-            self.log.append(f"{message}")
-
-    def handle_error_log(self, data):
-        _log = data['data']
-        messages = _log['message'].split("\n")
-        self.log.append(f"[red][Error][{self.timestamp_to_date(_log['timestamp'])}][white] {messages[0]}")
-        for message in messages[1:]:
-            self.log.append(f"{message}")
-
-    def handle_exception(self, data):
-        _log = data['data']
-        self.log.append(f"[yellow]Exception: [white] {_log['error']}")
-
-    def handle_termination(self, event_trading_mode):
-        self.log.append(f"[yellow]Trade {event_trading_mode} Termination")
-        self.candles = []
-        self.positions = []
-
-    def handle_unexpected_termination(self, data):
-        _log = data['data']
-        self.log.append(f"[yellow]Unexpected Termination: [white] {_log['message']}")
-        self.candles = []
-        self.positions = []
-
-    def handle_progressbar(self, data):
-        _info = data['data']
-        self.log.append(f"Loading data: {_info['current']}% in {_info['estimated_remaining_seconds']:.2f}s")
-
-    def update_layout(self, host, port):
-        tables = []
-        tables.append(self.refresh_infos(self.infos, f"{host}:{port}. Session {self.current_tab + 1}/{len(self.id_list)}. ID: {self.default_id}"))
-        tables.append(self.refresh_routes(self.routes))
-        tables.append(self.refresh_candles(self.candles, 6))
-        tables.append(self.refresh_positions(self.positions))
-        tables.append(self.refresh_orders(self.orders))
-        self.layout["left"].update(Columns(tables, expand=True))
-
-        tables = []
-        tables.append(self.refresh_watch_list(self.watch_list))
-        tables.append(self.refresh_log_messages(self.log))
-        self.layout["right"].update(Columns(tables, expand=True))
-
-    def refresh_infos(self, infos: Dict, host: str = "") -> Table:
-        """Show General Info"""
-        table = Table(title="Jesse Live CLI at " + host, expand=True)
+"""
         table.add_column("Started time /\nNow")
         table.add_column("Balance/ \nCurrent")
         table.add_column("Debug /\nPaper", justify="center")
@@ -195,44 +113,399 @@ class JesseLiveCLI:
         table.add_column("Win /\nTotal", justify="center")
         table.add_column("PNL")
         table.add_column("PNL %")
+"""
+SESSION_INFO = [
+    ("No","Session ID"),
+]
+GENERAL_INFO = [
+    ("Info ", "Data"),
+    ("Started time:", ""),
+    ("Current time:", ""),
+    ("Current / Balance", ""),
+    ("Win / Total", ""),
+    ("PNL", ""),
+    ("PNL %", ""),
+    ("Debug / Paper", ""),
+    ("Infos / Errors", ""),
+]  
+ROUTES_INFO = [
+    ("Symbol", "Timeframe", "Strategy"),
+]  
+
+CANDLES_INFO = [
+    ("Symbol", "Open", "Close", "High", "Low", "Volume"),
+]
+
+POSITIONS_INFO = [
+    ("Symbol", "Qty", "Entry", "Price", "Liq Price", "PNL"),
+]  
+
+ORDERS_INFO = [
+    ("Created", "Symbol", "Type", "Side", "Price", "QTY", "Status"),
+    
+]
+
+WATCH_LIST_INFO = [
+    ("Info", "Data"),
+    
+]
+            
         
-        values = []
-        data = {info: infos[info] for info in infos}
-        start_time = self.timestamp_to_date(data.get("started_at"))
-        current_time = self.timestamp_to_date(data.get("current_time"))
-        values.append(f"{start_time} {current_time}") 
-        values.append(f"{data.get('started_balance')} / {data.get('current_balance')}")
-        values.append(f"{data.get('debug_mode')} / {data.get('paper_mode')}")
-        values.append(f"{data.get('count_info_logs')} / {data.get('count_error_logs')}")
-        values.append(f"{data.get('count_winning_trades')} / {data.get('count_trades')}")
-        values.append(f"{data.get('pnl')}")     
-        values.append(f"{data.get('pnl_perc')}")   
+class LiveScreen(Screen):
+    BINDINGS = [
+        ("f", "toggle_files", "Toggle Files"),
+    ]
+    show_tree = var(True)
+    
+    def watch_show_tree(self, show_tree: bool) -> None:
+        self.set_class(show_tree, "-show-tree")
+                
+    def compose(self) -> ComposeResult:
+        path = "./logs/" 
+        yield Label("Live Content")
+        with Container():
+            yield DirectoryTree(path, id="tree-view")
+            with Horizontal():
+                with Vertical(id="center-container"):
+                    yield Label("Session id: ", id="session-id")
+                    yield DataTable(id="session-info")
+                    yield Label("Routes")
+                    yield DataTable(id="route-info")
+                    yield Label("Candles")
+                    yield DataTable(id="candle-info")
+                    yield Label("Positions")
+                    yield DataTable(id="position-info")
+                    yield Label("Orders")
+                    yield DataTable(id="order-info")
+                    yield Label("LOG", id="error")
+                    with VerticalScroll(id="code-view"):
+                        yield Static(id="code", expand=True)
+                with Vertical(id="right-container"):
+                    yield Label("Overview", id="overview")
+                    yield DataTable(id="general-info")
+                    yield Label("Watch List")
+                    yield DataTable(id="watch-list")
+        yield Footer()        
+        
+    def on_mount(self) -> None:
+        self.query_one(DirectoryTree).focus()
+        
+        table = self.query_one("#session-info",DataTable)
+        table.add_columns(*SESSION_INFO[0])
 
-        table.add_row(*values)
-        return table
+        table = self.query_one("#general-info",DataTable)
+        table.add_columns(*GENERAL_INFO[0])
 
-    def refresh_log_messages(self, messages: List[str]) -> Table:
-        """Show log tail"""
-        table = Table(title="Log messages", expand=True)
-        table.add_column("Log")
-        for msg in messages[-16:]:
-            table.add_row(msg)
-        return table
+        table = self.query_one("#route-info",DataTable)
+        table.add_columns(*ROUTES_INFO[0])
+        
+        table = self.query_one("#candle-info",DataTable)
+        table.add_columns(*CANDLES_INFO[0])
+        
+        table = self.query_one("#watch-list",DataTable)
+        table.add_columns(*WATCH_LIST_INFO[0])
+        
+        table = self.query_one("#position-info",DataTable)
+        table.add_columns(*POSITIONS_INFO[0])
 
-    def refresh_candles(self, candles: List[str], round_digits: int = 2) -> Table:
+        table = self.query_one("#order-info",DataTable)
+        table.add_columns(*ORDERS_INFO[0])
+
+
+    def on_directory_tree_file_selected(
+        self, event: DirectoryTree.FileSelected
+    ) -> None:
+        event.stop()
+        code_view = self.query_one("#code", Static)
+        try:
+            syntax = Syntax.from_path(
+                str(event.path),
+                line_numbers=True,
+                word_wrap=False,
+                indent_guides=True,
+                theme="github-dark",
+            )
+        except Exception:
+            code_view.update(Traceback(theme="github-dark", width=None))
+            self.sub_title = "ERROR"
+        else:
+            code_view.update(syntax)
+            self.query_one("#code-view").scroll_home(animate=False)
+            self.sub_title = str(event.path)
+    
+    def watch_show_tree(self, show_tree: bool) -> None:
+        """Called when show_tree is modified."""
+        self.set_class(show_tree, "-show-tree")
+        
+    def action_toggle_files(self) -> None:
+        self.show_tree = not self.show_tree
+
+    async def on_datatable_row_selected(self, event: DataTable.RowSelected) -> None:
+        self.query_one("#overview").update(f"Row Selected: {event.row_key.value}")
+        if event.data_table.id == "session-info":
+            self.default_id = event.row_key.value
+            
+# Custom Header class with horizontal buttons
+class CustomHeader(Container):
+    def compose(self) -> ComposeResult:
+        buttons = Horizontal(
+            Button("Home", id="home"),
+            Button("Strategies", id="strategies"),
+            Button("Import Candles", id="import_candles"),
+            Button("Backtest", id="backtest"),
+            Button("Optimization", id="optimization"),
+            Button("Live", id="live"),
+            id="main_buttons"
+        )
+        yield buttons
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.post_message(ButtonActivatedMessage(self, event.button.id))
+
+class JesseLiveCLIApp(App):
+    log_content: Reactive[str] = Reactive("")
+    CSS_PATH = "styles.tcss"  # Ensure this path points to your CSS file
+
+    BINDINGS = [
+        Binding("1","change_session('0')","Session 1", show=False),
+        Binding("2", "change_session('1')", "Session 2", show=False),
+        Binding("3", "change_session('2')", "Session 3", show=False),
+        Binding("4", "change_session('3')", "Session 4", show=False),
+        Binding("5", "change_session('4')", "Session 5", show=False),
+        Binding("6", "change_session('5')", "Session 6", show=False),
+        Binding("7", "change_session('6')", "Session 7", show=False),
+        Binding("8", "change_session('7')", "Session 8", show=False),
+        Binding("9", "change_session('8')", "Session 9", show=False),
+        ("h", "switch_mode('home')", "Home"),
+        ("s", "switch_mode('strategies')", "Strategies"),
+        ("i", "switch_mode('import_candles')", "Import Candles"),
+        ("b", "switch_mode('backtest')", "Backtest"),
+        ("o", "switch_mode('optimization')", "Optimization"),
+        ("l", "switch_mode('live')", "Live"),
+        ("q", "quit", "Quit"),        
+    ]
+    
+    MODES = {
+        "home": HomeScreen,
+        "strategies": StrategiesScreen,
+        "import_candles": ImportCandlesScreen,
+        "backtest": BacktestScreen,
+        "optimization": OptimizationScreen,
+        "live": LiveScreen
+    }
+
+    websocket: Optional[websockets.WebSocketClientProtocol] = None
+    websocket_task = None
+    command_queue = asyncio.Queue()
+    messages = Reactive(None)
+    id_list = Reactive([])
+    log_info = Reactive("")
+    log_error = Reactive("")
+
+    id_index = 0
+    start_time = 0
+    initialized = False
+    # default_id = ""
+   
+    server_config = Reactive("")
+    routes_config = Reactive("")
+    default_id = Reactive("")
+    
+
+    def init_config(self, server_config, routes_config, default_id):
+        self.server_config = server_config
+        self.routes_config = routes_config
+        self.default_id = default_id
+        
+        self.handle_info_log("Hi there")
+
+    def action_change_session(self, id : str):
+        _id = int(id)
+        _len = len(self.id_list)
+        if _id < _len:
+            self.default_id = self.id_list[_id]
+            self.id_index = _id
+            self.query_one("#session-id", Label).update(f"Session id {_id + 1}/{_len}: {self.default_id }")
+
+
+    def setup_logger(self):
+        # Create logs directory if it doesn't exist
+        os.makedirs("./logs", exist_ok=True)
+        
+        # Generate log file name
+        start_time = datetime.now().strftime("%Y%m%d%H%M%S")
+        log_file = f"./logs/{self.default_id}-{start_time}.txt"
+        
+        # Set up logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[RichHandler(), logging.FileHandler(log_file)]
+        )
+        self.logger = logging.getLogger("rich")
+
+    def setup_logger_2(self):
+        # Create logs directory if it doesn't exist
+        os.makedirs("./logs", exist_ok=True)
+        
+        # Generate log file name
+        start_time = datetime.now().strftime("%Y%m%d%H%M%S")
+        log_file = f"./logs/{start_time}.txt"
+        
+        # Set up logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[RichHandler(), logging.FileHandler(log_file)]
+        )
+        self.log_file = logging.getLogger("rich")
+        
+
+    def compose(self) -> ComposeResult:
+        yield CustomHeader()
+        yield Footer()
+
+    async def on_mount(self) -> None:
+        self.switch_mode("live")
+        
+    async def on_load(self):
+        start_time = datetime.now().strftime("%Y%m%d%H%M%S")
+        log_file = f"./logs/{start_time}.txt"
+        
+        # Set up logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[RichHandler(), logging.FileHandler(log_file)]
+        )
+        self.log_file = logging.getLogger("rich")
+                
+        self.websocket_task = asyncio.create_task(self.start_client(self.server_config))
+        # self.start_client("server.yml")
+        
+    async def on_datatable_row_selected(self, event: DataTable.RowSelected) -> None:
+        self.query_one("#overview").update(f"Row Selected: {event.row_key.value}")
+        if event.data_table.id == "session-info":
+            self.default_id = event.row_key.value
+
+    async def on_route_select_message(self, message: RouteSelectMessage) -> None:
+        # Handle the selected route file path
+        print(f"Selected route file path: {message.file_path}")
+        self.display_error(message.file_path)
+        self.handle_info_log(message.file_path)
+
+        
+    async def on_button_activated_message(self, message: ButtonActivatedMessage) -> None:
+        if message.button_id == "home":
+            self.switch_mode("home")
+        elif message.button_id == "strategies":
+            self.switch_mode("strategies")
+        elif message.button_id == "import_candles":
+            self.switch_mode("import_candles")
+        elif message.button_id == "backtest":
+            self.switch_mode("backtest")
+        elif message.button_id == "optimization":
+            self.switch_mode("optimization")
+        elif message.button_id == "live":
+            self.switch_mode("live")
+
+    async def handle_message(self, message):
+        try:
+            # Process incoming messages and update state
+            data = json.loads(message)
+            id = data['id']
+            if len(id) > 0:
+                if self.default_id == "":                
+                    self.default_id = id
+                    self.action_change_session(str(self.id_index))
+                    # self.query_one("#session-id", Label).update(f"Session id 1/1: {id}")
+
+                if id not in self.id_list:
+                    self.id_list.append(id)
+                    len_id = len(self.id_list)
+                    values = [
+                        len_id,
+                        id
+                    ]
+                    self.query_one("#session-info", DataTable).add_row(*values)
+                    self.action_change_session(str(self.id_index))
+                    # self.BINDINGS.append(("{len_id}", "change_session('{len_id}')", f"Session {len_id}"))
+                
+            event_info = data['event'].split(".")
+            event = event_info[1] if len(event_info) == 2 else ""
+            event_trading_mode = event_info[0] if len(event_info) == 2 else ""
+            
+            if id != self.default_id:
+                return
+
+            if event == 'info_log':
+                self.handle_info_log(data['data']['message'])
+            elif event == 'error_log':
+                self.handle_error_log(data['data']['message'])
+            elif event == 'exception':
+                self.handle_exception(data['data']['message'])
+            elif event == 'termination':
+                self.handle_termination(data['data'])
+            elif event == 'unexpectedTermination':
+                self.handle_unexpected_termination(data['data'])      
+            elif event == 'progressbar':
+                self.handle_progressbar(data)
+            elif event == 'general_info':
+                if self.initialized == False:
+                    self.initialized = True
+                    self.start_time = data['data']['started_at']    
+                    self.setup_logger()
+                self.handle_general_info(data['data'])
+                self.handle_routes(data['data']['routes'])
+            elif event == 'current_candles':
+                self.candles = data['data']                
+                self.handle_candles(data['data'])
+            elif event == 'positions':
+                self.positions = data['data']
+                self.handle_positions(data['data'])
+            elif event == 'watch_list':
+                self.handle_watch_list(data['data'])
+            elif event == 'orders':
+                self.orders = data['data']
+                self.handle_orders(data['data'])
+            else:
+                self.handle_info_log(data)
+                
+        except Exception as e:
+            self.display_error(e)
+    def handle_progressbar(self, data):
+        _info = data['data']
+        self.handle_info_log(f"Loading data: {_info['current']}% in {_info['estimated_remaining_seconds']:.2f}s")
+
+    def handle_session_selected(self, session_id: str) -> None:
+        self.default_id = session_id
+        self.display_error(f"Selected session: {session_id}")
+        
+    def handle_orders(self, orders: Dict[str, Dict]) -> None:
+        table = self.query_one("#order-info", DataTable)
+        table.clear()
+        for order in orders:
+            color = "[green]" if order['side'] == 'buy' else "[red]"
+            values = [
+                f"{color}{order['symbol']}",
+                f"{color}{order['type']}",
+                f"{color}{order['side']}",
+                f"{color}{order['qty']:.2f}",   
+            ]
+            table.add_row(*values)
+
+    def handle_candles(self, candles: Dict[str, Dict], round_digits: int = 3) -> None:
         """Show Route & Candles table"""
-        table = Table(title="Route & Candles", expand=True)
-        table.add_column("Symbol")
-        table.add_column("Open", justify="right")
-        table.add_column("Close", justify="right")
-        table.add_column("High", justify="right")
-        table.add_column("Low", justify="right")
-        table.add_column("Volume", justify="right")
-
-        for symbol in candles:
-            candle = candles[symbol]
+        table = self.query_one("#candle-info", DataTable)
+        table.clear()
+        
+        
+        for symbol, candle in candles.items():
             color = "[green]" if candle['open'] < candle['close'] else "[red]"
-
+            symbol = symbol[symbol.find("-") + 1:]
             values = [
                 symbol,
                 f"{color}{candle['open']:.{round_digits}f}",
@@ -242,102 +515,186 @@ class JesseLiveCLI:
                 f"{color}{candle['volume']:.{round_digits}f}"
             ]
             table.add_row(*values)
-        return table
+        
+        
+    def handle_watch_list(self, watch_list: List[Dict]) -> None:
+        try:
+            table = self.query_one("#watch-list",DataTable)
+            table.clear()
+            for key,value in watch_list:
+                values = []
+                values.append(key)       
+                values.append(value)  
+                table.add_row(*values)       
+        except Exception as e:
+            self.display_error(e)
 
-    def refresh_positions(self, positions: List[str]) -> Table:
-        """Show Position table"""
-        table = Table(title="Positions", expand=True)
-        table.add_column("Symbol")
-        table.add_column("Strategy")
-        table.add_column("Leverage")
-        table.add_column("QTY", justify="right")
-        table.add_column("Entry ", justify="right")
-        table.add_column("Current Price", justify="right")
-        table.add_column("PNL", justify="right")
-        table.add_column("PNL %", justify="right")
+    def handle_info_log(self, data):
+                   
+        if not self.initialized:
+            return
 
-        for position in positions:
-            color = "[green]" if position['pnl'] > 0 else "[red]"
-            values = [
-                position['symbol'],
-                position['strategy_name'],
-                f"{position['leverage']:d}",
-                f"{color}{position['qty']:.2f}" if position['type'] != 'close' else "",
-                f"{position['entry']:.2f}" if position['type'] != 'close' else "",
-                f"{position['current_price']:.2f}",
-                f"{color}{position['pnl']:.2f}" if position['type'] != 'close' else "",
-                f"{color}{position['pnl_perc']:.2f}" if position['type'] != 'close' else ""
-            ]
-            table.add_row(*values)
-        return table
+        
+        self.logger.info(data) 
+        self.query_one("#error").update(f"LOG INFO: {data}")
+            
+        # self.log_info.append(data)
+        self.log_info += f"\n{data}"
+        syntax = Syntax(str(self.log_info),
+                line_numbers=True,
+                word_wrap=True,
+                indent_guides=True,
+                theme="github-dark",
+                lexer="text")   
+        self.query_one("#code").update(syntax)
+        self.query_one("#code").scroll_home(animate=False)
+        
+    def handle_error_log(self, data):
+        if self.initialized:
+            self.logger.error(data)
+        # self.log_error.append(data)
+        self.log_error += f"\n{data}"
+        syntax = Syntax(self.log_error,
+                line_numbers=True,
+                word_wrap=True,
+                indent_guides=True,
+                theme="github-dark",
+                lexer="text")          
+        self.query_one("#code").update(syntax)
+        self.query_one("#code").scroll_home(animate=False)
 
-    def refresh_watch_list(self, watch_list: List[Dict]) -> Table:
-        table = Table(title="Watch List", expand=True)
-        table.add_column("Info")
-        table.add_column("Data", justify="right", style="green")
+    def handle_exception(self, data):
+        self.handle_error_log(f"Exception: {data}")
 
-        for key,value in watch_list:
-            values = []
-            values.append(key)       
-            values.append(value)  
-            table.add_row(*values)            
-        # """Show Watch List"""
-        # table = Table(title="Watch List", expand=True)
-        # table.add_column("Info")
-        # table.add_column("Data", justify="right", style="green")
+    def handle_termination(self, data):
+        self.handle_error_log(f"Termination: {data}")
 
-        # for item in watch_list:
-        #     # Assuming each item in the list is a dictionary with 'info' and 'data' keys
-        #     info = item.get('info', 'N/A')
-        #     data = item.get('data', 'N/A')
-        #     table.add_row(info, data)
-        return table
+    def handle_unexpected_termination(self, data):
+        self.handle_error_log(f"Unexpected Termination: {data}")
 
-    def refresh_routes(self, routes: Dict) -> Table:
+    def handle_positions(self, positions: List[Dict]) -> None:
+        try:
+            table = self.query_one("#position-info", DataTable)
+            table.clear()
+            for position in positions:
+                values = [
+                    position['symbol'],
+                    position['qty'],
+                    position['entry'],
+                    position['current_price'],
+                    position['pnl'] if position['type'] != 'close' else "",
+                    position['pnl_perc'] if position['type'] != 'close' else "",
+                ]
+                table.add_row(*[Text(str(cell), style="bold #03AC13", justify="left") for cell in values])
+        except Exception as e:
+            self.display_error(e)
+
+    def handle_routes(self, routes: Dict) -> None:
         """Show Route"""
-        table = Table(title="Routes", expand=True)
-        table.add_column("Symbol", justify="right")
-        table.add_column("Timeframe", justify="left")
-        table.add_column("Strategy", justify="left")
+        try:         
+            table = self.query_one("#route-info",DataTable)
+            table.clear()            
+            for route in routes:
+                values = [
+                    route['symbol'],
+                    route['timeframe'],
+                    route['strategy']
+                ]
 
-        for route in routes:
+                styled_row = [
+                    Text(str(cell), style="bold #03AC13", justify="left") for cell in values
+                ]            
+                table.add_row(*styled_row)                
+        except Exception as e:
+            # print(f"An error occurred: {e}")
+            self.display_error(e)
+            self.query_one("#overview").update(f"Error: {e}")
+
+        
+    def handle_general_info(self, infos):
+        try:
+            data = {info: infos[info] for info in infos}
             values = [
-                route['symbol'],
-                route['timeframe'],
-                route['strategy']
+                f"{timestamp_to_date(data.get('started_at'))}",
+                f"{timestamp_to_date(data.get('current_time'))}",
+                f"{data.get('current_balance')} / {data.get('started_balance')}",
+                f"{data.get('count_winning_trades')} / {data.get('count_trades')}",
+                f"{data.get('pnl')}",
+                f"{data.get('pnl_perc')}",
+                f"{data.get('debug_mode')} / {data.get('paper_mode')}",
+                f"{data.get('count_info_logs')} / {data.get('count_error_logs')}"
             ]
-            table.add_row(*values)
-        return table
 
-    def refresh_orders(self, orders: Dict) -> Table:
-        """Show Orders"""
-        table = Table(title="Orders", expand=True)
-        table.add_column("Symbol")
-        table.add_column("Type")
-        table.add_column("Side")
-        table.add_column("QTY")
-        table.add_column("Price")
-        table.add_column("Status")
-        table.add_column("created_at")
+            table = self.query_one("#general-info", DataTable)
+            table.clear()
 
-        for order in orders:
-            color = "[green]" if order['side'] == 'buy' else "[red]"
-            values = [
-                f"{color}{order['symbol']}",
-                f"{color}{order['type']}",
-                f"{color}{order['side']}",
-                f"{color}{order['qty']:.2f}",
-                f"{color}{order['price']:.2f}",
-                f"{color}{order['status']}",
-                f"{color}{self.timestamp_to_date(order['created_at'])}"
-            ]
-            table.add_row(*values)
-        return table
+            for i, row in enumerate(GENERAL_INFO[1:]):
+                styled_row = [
+                    Text(str(cell), style="bold #03AC13", justify="left") for cell in row[:1] + (values[i],)
+                ]
+                table.add_row(*styled_row)
 
-    def timestamp_to_date(self, timestamp) -> str:
-        """Convert timestamp to date string"""
-        if timestamp is None:
-            return ''
-        if isinstance(timestamp, str):
-            timestamp = int(timestamp)
-        return str(arrow.get(timestamp))
+        except Exception as e:
+            self.display_error(e)
+
+
+    def display_error(self, data):
+        self.query_one("#error").update(f"Error: {str(data)}")
+        code_view = self.query_one("#code", Static).update(Traceback(theme="github-dark", width=None))
+        if self.initialized:
+            self.logger.error(f"Error: {str(data)}")
+
+
+
+    async def start_client(self, server_config: str):
+        cfg = load_config(server_config)
+        data = cfg["server"]
+        connection = generate_ws_url(data['host'], data['port'], data['password'])
+        # await asyncio.sleep(1)  # Wait before connecting
+        print(f"Generated WebSocket URL: {connection}")
+        while True:
+            try:
+                print("Attempting to connect to WebSocket server...")
+                async with websockets.connect(connection) as websocket:
+                    self.websocket = websocket
+                    print("Connected to WebSocket server.")
+                    consumer_task = asyncio.create_task(self.consumer_handler(websocket))
+                    producer_task = asyncio.create_task(self.producer_handler(websocket, "SessionName"))
+                    done, pending = await asyncio.wait(
+                        [consumer_task, producer_task],
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    for task in done:
+                        if task.exception():
+                            print(f"Task {task.get_name()} raised an exception: {task.exception()}")
+                        else:
+                            print(f"Task {task.get_name()} completed with result: {task.result()}")
+                    for task in pending:
+                        task.cancel()
+            except websockets.ConnectionClosed as e:
+                print(f"WebSocket connection closed: {e}. Reconnecting in 5 seconds...")
+                await asyncio.sleep(5)  # Wait before retrying
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}. Reconnecting in 5 seconds...")
+                await asyncio.sleep(5)  # Wait before retrying
+
+    async def consumer_handler(self, websocket):
+        async for message in websocket:
+            await self.handle_message(message)
+
+    async def producer_handler(self, websocket, name):
+        await websocket.send(json.dumps({"command": "join", "args": {"name": name}}))
+        while True:
+            command = await self.command_queue.get()
+            await websocket.send(json.dumps(command))
+            self.command_queue.task_done()
+
+
+async def run_live_cli(server_config: str, routes_config: str, default_id: str = ""):
+    try:
+        app = JesseLiveCLIApp()
+        app.init_config(server_config, routes_config, default_id)    
+        await app.run_async()
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}. Exiting...")
+        exit()

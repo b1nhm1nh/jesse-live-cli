@@ -1,0 +1,118 @@
+/* styles.tcss */
+
+.link {
+  color: blue;
+  /* background: none; */
+  border: none;
+}
+
+.small {
+  padding: 1 2;
+  /* Use integer values for padding */
+  /* margin: 1 0; */
+  /* Use integer values for margin */
+}
+
+Screen {
+  background: $surface-darken-1;
+  &:inline {
+    height: 50vh;
+  }
+}
+
+#tree-view {
+  /* display: none; */
+  scrollbar-gutter: stable;
+  overflow: auto;
+  width: auto;
+  height: 30%;
+  dock: left;
+}
+
+#center-container {
+  scrollbar-gutter: stable;
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+}
+
+#right-container {
+  dock: right;
+  scrollbar-gutter: stable;
+  overflow: auto;
+  width: 50;
+  height: 100%;
+}
+
+CodeBrowser.-show-tree #tree-view {
+  display: block;
+  max-width: 50%;
+}
+
+#error {
+  width: auto;
+  height: auto;
+}
+
+
+#data-view {
+  width: auto;
+  height: auto;
+}
+
+#session-info {
+  width: 100%;
+  height: auto;
+}
+
+#general-info {
+  width: 100%;
+  height: auto;
+}
+
+#route-info {
+  width: 100%;
+  height: auto;
+}
+
+#position-info {
+  width: 100%;
+  height: auto;
+}
+
+#order-info {
+  width: 100%;
+  height: auto;
+}
+
+#candle-info {
+  width: 100%;
+  height: auto;
+}
+
+#watch-list {
+  width: 100%;
+  height: auto;
+}
+
+#overview {
+  width: 100%;
+  height: auto;
+}
+
+#session-id {
+  width: 100%;
+  height: auto;
+}
+
+#code-view {
+  overflow: auto scroll;
+  width: 100%;
+  height: auto;
+  /* min-wi dth: 100%; */
+  /* hatch: right $primary; */
+}
+
+#code {
+  width: auto;
+}
