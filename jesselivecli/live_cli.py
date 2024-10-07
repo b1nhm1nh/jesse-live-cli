@@ -47,48 +47,48 @@ class HomeScreen(Screen):
 class StrategiesScreen(Screen):
     show_tree = var(True)
     
-    # def watch_show_tree(self, show_tree: bool) -> None:
-    #     self.set_class(show_tree, "-show-tree")
+    def watch_show_tree(self, show_tree: bool) -> None:
+        self.set_class(show_tree, "-show-tree")
                 
-    # def compose(self) -> ComposeResult:
-    #     path = "./strategies/" 
-    #     yield Label("Strategies Content")
-    #     with Container():
-    #         yield DirectoryTree(path, id="tree-view")
-    #         with Vertical():     
-    #             with VerticalScroll(id="code-view"):
-    #                 yield Static(id="code", expand=True)
-    #     yield Footer()        
-    # def on_mount(self) -> None:
-    #     self.query_one(DirectoryTree).focus()
+    def compose(self) -> ComposeResult:
+        path = "./strategies/" 
+        yield Label("Strategies Content")
+        with Container():
+            yield DirectoryTree(path, id="tree-view")
+            with Vertical():     
+                with VerticalScroll(id="code-view"):
+                    yield Static(id="code", expand=True)
+        yield Footer()        
+    def on_mount(self) -> None:
+        self.query_one(DirectoryTree).focus()
 
-    # def on_directory_tree_file_selected(
-    #     self, event: DirectoryTree.FileSelected
-    # ) -> None:
-    #     event.stop()
-    #     code_view = self.query_one("#code", Static)
-    #     try:
-    #         syntax = Syntax.from_path(
-    #             str(event.path),
-    #             line_numbers=True,
-    #             word_wrap=True,
-    #             indent_guides=True,
-    #             theme="github-dark",
-    #         )
-    #         self.send_file_path_to_main_app(event)
-    #     except Exception:
-    #         code_view.update(Traceback(theme="github-dark", width=None))
-    #         self.sub_title = "ERROR"
-    #     else:
-    #         code_view.update(syntax)
-    #         self.query_one("#code-view").scroll_home(animate=False)
-    #         self.sub_title = str(event.path)
-    #         
-    # def send_file_path_to_main_app(self, event: DirectoryTree.FileSelected) -> None:
-    #     self.post_message(RouteSelectMessage(self, event.path ))
+    def on_directory_tree_file_selected(
+        self, event: DirectoryTree.FileSelected
+    ) -> None:
+        event.stop()
+        code_view = self.query_one("#code", Static)
+        try:
+            syntax = Syntax.from_path(
+                str(event.path),
+                line_numbers=True,
+                word_wrap=True,
+                indent_guides=True,
+                theme="github-dark",
+            )
+            self.send_file_path_to_main_app(event)
+        except Exception:
+            code_view.update(Traceback(theme="github-dark", width=None))
+            self.sub_title = "ERROR"
+        else:
+            code_view.update(syntax)
+            self.query_one("#code-view").scroll_home(animate=False)
+            self.sub_title = str(event.path)
+            
+    def send_file_path_to_main_app(self, event: DirectoryTree.FileSelected) -> None:
+        self.post_message(RouteSelectMessage(self, event.path ))
 
-    # def action_toggle_files(self) -> None:
-    #     self.show_tree = not self.show_tree   
+    def action_toggle_files(self) -> None:
+        self.show_tree = not self.show_tree   
 
 class ImportCandlesScreen(Screen):
     def compose(self) -> ComposeResult:
@@ -137,7 +137,7 @@ CANDLES_INFO = [
 ]
 
 POSITIONS_INFO = [
-    ("Symbol", "Qty", "Entry", "Price", "Liq Price", "PNL"),
+    ("Symbol", "Qty", "Entry", "Price", "PNL", "PNL %"),
 ]  
 
 ORDERS_INFO = [
@@ -327,25 +327,7 @@ class JesseLiveCLIApp(App):
             self.id_index = _id
             self.query_one("#session-id", Label).update(f"Session id {_id + 1}/{_len}: {self.default_id }")
 
-
     def setup_logger(self):
-        # Create logs directory if it doesn't exist
-        os.makedirs("./logs", exist_ok=True)
-        
-        # Generate log file name
-        start_time = datetime.now().strftime("%Y%m%d%H%M%S")
-        log_file = f"./logs/{self.default_id}-{start_time}.txt"
-        
-        # Set up logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-            datefmt="[%X]",
-            handlers=[RichHandler(), logging.FileHandler(log_file)]
-        )
-        self.logger = logging.getLogger("rich")
-
-    def setup_logger_2(self):
         # Create logs directory if it doesn't exist
         os.makedirs("./logs", exist_ok=True)
         
@@ -360,8 +342,7 @@ class JesseLiveCLIApp(App):
             datefmt="[%X]",
             handlers=[RichHandler(), logging.FileHandler(log_file)]
         )
-        self.log_file = logging.getLogger("rich")
-        
+        self.logger = logging.getLogger("rich")       
 
     def compose(self) -> ComposeResult:
         yield CustomHeader()
@@ -371,17 +352,7 @@ class JesseLiveCLIApp(App):
         self.switch_mode("live")
         
     async def on_load(self):
-        start_time = datetime.now().strftime("%Y%m%d%H%M%S")
-        log_file = f"./logs/{start_time}.txt"
-        
-        # Set up logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-            datefmt="[%X]",
-            handlers=[RichHandler(), logging.FileHandler(log_file)]
-        )
-        self.log_file = logging.getLogger("rich")
+        self.setup_logger()
                 
         self.websocket_task = asyncio.create_task(self.start_client(self.server_config))
         # self.start_client("server.yml")
@@ -454,10 +425,10 @@ class JesseLiveCLIApp(App):
             elif event == 'progressbar':
                 self.handle_progressbar(data)
             elif event == 'general_info':
-                if self.initialized == False:
+                if not self.initialized:
                     self.initialized = True
                     self.start_time = data['data']['started_at']    
-                    self.setup_logger()
+                    
                 self.handle_general_info(data['data'])
                 self.handle_routes(data['data']['routes'])
             elif event == 'current_candles':
@@ -493,7 +464,10 @@ class JesseLiveCLIApp(App):
                 f"{color}{order['symbol']}",
                 f"{color}{order['type']}",
                 f"{color}{order['side']}",
-                f"{color}{order['qty']:.2f}",   
+                f"{color}{order['qty']:.2f}",
+                f"{color}{order['price']:.2f}",
+                f"{color}{order['status']}",
+                f"{color}{timestamp_to_date(order['created_at'])}"                
             ]
             table.add_row(*values)
 
@@ -572,18 +546,20 @@ class JesseLiveCLIApp(App):
     def handle_unexpected_termination(self, data):
         self.handle_error_log(f"Unexpected Termination: {data}")
 
-    def handle_positions(self, positions: List[Dict]) -> None:
+    def handle_positions(self, positions: List[Dict], round_digits: int = 3) -> None:
         try:
             table = self.query_one("#position-info", DataTable)
             table.clear()
             for position in positions:
+                pnl = round(position['pnl'], round_digits) if position['type'] != 'close' else ""
+                pnl_perc = round(position['pnl_perc'], round_digits) if position['type'] != 'close' else ""
                 values = [
                     position['symbol'],
                     position['qty'],
                     position['entry'],
                     position['current_price'],
-                    position['pnl'] if position['type'] != 'close' else "",
-                    position['pnl_perc'] if position['type'] != 'close' else "",
+                    pnl,
+                    pnl_perc,
                 ]
                 table.add_row(*[Text(str(cell), style="bold #03AC13", justify="left") for cell in values])
         except Exception as e:
@@ -650,8 +626,7 @@ class JesseLiveCLIApp(App):
         cfg = load_config(server_config)
         data = cfg["server"]
         connection = generate_ws_url(data['host'], data['port'], data['password'])
-        # await asyncio.sleep(1)  # Wait before connecting
-        print(f"Generated WebSocket URL: {connection}")
+        await asyncio.sleep(1)  # Wait before connecting
         while True:
             try:
                 print("Attempting to connect to WebSocket server...")
