@@ -4,6 +4,8 @@ import yaml
 import json
 import arrow
 from hashlib import sha256
+from datetime import datetime
+import pytz
 
 def load_config(config_filename: str) -> Dict:
     cfg_file = pathlib.Path(config_filename)
@@ -28,10 +30,18 @@ def generate_ws_url(host: str, port: str, password: str) -> str:
     hashed_local_pass = sha256(password.encode('utf-8')).hexdigest()
     return f"ws://{host}:{port}/ws?token={hashed_local_pass}"    
             
-def timestamp_to_date(timestamp) -> str:
-    if timestamp is None:
-        return ''
-    if type(timestamp) == str:
-        timestamp = int(timestamp)
-
-    return str(arrow.get(timestamp))
+def timestamp_to_date(timestamp: int, timezone: str = 'ASIA/BANGKOK') -> str:
+    """Convert a timestamp to a formatted date string in the specified timezone."""
+    # Check if the timestamp is in milliseconds and convert to seconds
+    # if timestamp > 1e10:  # Roughly corresponds to a date in 2286
+    timestamp = int(timestamp) / 1000
+    
+    # Convert the timestamp to a datetime object
+    dt = datetime.utcfromtimestamp(timestamp).replace(tzinfo=pytz.utc)
+    
+    # Convert the datetime to the specified timezone
+    target_timezone = pytz.timezone(timezone)
+    dt = dt.astimezone(target_timezone)
+    
+    # Format the datetime as a string
+    return dt.strftime('%Y-%m-%d %H:%M:%S %Z%z')

@@ -25,7 +25,7 @@ Screen {
   scrollbar-gutter: stable;
   overflow: auto;
   width: auto;
-  height: 30%;
+  height: auto;
   dock: left;
 }
 
