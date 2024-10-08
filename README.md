@@ -84,3 +84,7 @@ jesse-live-cli restart
 ### Limitation & known bugs
  - Jesse can run multiple Live session when using: `jesse-live-cli run`.
  - Multi sessions of Jesse Live Cli can connect to Jesse, including Jesse web, but only the last one will receive data. You should use `jesse-live-cli proxy --listen_port` if you want to multiple Live sessions concurrently.
+
+### Todo:
+- Save sessions into files.
+- Start / Stop session from UI.
