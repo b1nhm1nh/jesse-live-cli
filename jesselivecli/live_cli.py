@@ -21,6 +21,10 @@ import os
 from datetime import datetime
 from textual.binding import Binding
 
+from pathlib import Path
+from typing import Iterable
+
+
 # Define a custom message for button activation
 class ButtonActivatedMessage(Message):
     def __init__(self, sender, button_id: str):
@@ -44,20 +48,33 @@ class HomeScreen(Screen):
         yield Label("Home Content")
         yield Footer()
 
-class StrategiesScreen(Screen):
+class FilteredDirectoryTree(DirectoryTree):
+    def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
+        return [path for path in paths if path.suffix in [".json", ".yml"]]
+
+class RoutesScreen(Screen):
+    BINDINGS = [
+        ("f", "toggle_files", "Toggle Files"),
+    ]
     show_tree = var(True)
     
     def watch_show_tree(self, show_tree: bool) -> None:
         self.set_class(show_tree, "-show-tree")
+        tree_view = self.query_one("#tree-view", DirectoryTree)
+        tree_view.visible = show_tree  # Toggle visibility based on show_tree
                 
     def compose(self) -> ComposeResult:
-        path = "./strategies/" 
-        yield Label("Strategies Content")
+        path = "./" 
+        yield Label("Routes Content")
         with Container():
-            yield DirectoryTree(path, id="tree-view")
-            with Vertical():     
-                with VerticalScroll(id="code-view"):
-                    yield Static(id="code", expand=True)
+            yield FilteredDirectoryTree(path, id="tree-view")
+            with Vertical(id="center-container"):
+                with VerticalScroll(id="code-route-view"):                    
+                    with Horizontal(id="button-view"):
+                        yield Button("Start", id="start", variant="success")
+                        yield Button("Stop", id="stop", variant="error")
+                    yield Static(id="route-code", expand=True)
+                    
         yield Footer()        
     def on_mount(self) -> None:
         self.query_one(DirectoryTree).focus()
@@ -66,7 +83,7 @@ class StrategiesScreen(Screen):
         self, event: DirectoryTree.FileSelected
     ) -> None:
         event.stop()
-        code_view = self.query_one("#code", Static)
+        code_view = self.query_one("#route-code", Static)
         try:
             syntax = Syntax.from_path(
                 str(event.path),
@@ -81,14 +98,14 @@ class StrategiesScreen(Screen):
             self.sub_title = "ERROR"
         else:
             code_view.update(syntax)
-            self.query_one("#code-view").scroll_home(animate=False)
+            self.query_one("#code-route-view").scroll_home(animate=True)
             self.sub_title = str(event.path)
             
     def send_file_path_to_main_app(self, event: DirectoryTree.FileSelected) -> None:
-        self.post_message(RouteSelectMessage(self, event.path ))
+        self.post_message(RouteSelectMessage(self, event.path))
 
     def action_toggle_files(self) -> None:
-        self.show_tree = not self.show_tree   
+        self.show_tree = not self.show_tree
 
 class ImportCandlesScreen(Screen):
     def compose(self) -> ComposeResult:
@@ -159,12 +176,14 @@ class LiveScreen(Screen):
     
     def watch_show_tree(self, show_tree: bool) -> None:
         self.set_class(show_tree, "-show-tree")
+        logtree_view = self.query_one("#logtree-view", DirectoryTree)
+        logtree_view.visible = show_tree  # Toggle visibility based on show_tree
                 
     def compose(self) -> ComposeResult:
         path = "./logs/" 
         yield Label("Live Content")
         with Container():
-            yield DirectoryTree(path, id="tree-view")
+            yield DirectoryTree(path, id="logtree-view")
             with Horizontal():
                 with Vertical(id="center-container"):
                     yield Label("Session id: ", id="session-id")
@@ -180,7 +199,6 @@ class LiveScreen(Screen):
                     yield Label("LOG", id="error")
                     with VerticalScroll(id="code-view"):
                         yield Static(id="code", expand=True)
-                with Vertical(id="right-container"):
                     yield Label("Overview", id="overview")
                     yield DataTable(id="general-info")
                     yield Label("Watch List")
@@ -190,27 +208,26 @@ class LiveScreen(Screen):
     def on_mount(self) -> None:
         self.query_one(DirectoryTree).focus()
         
-        table = self.query_one("#session-info",DataTable)
+        table = self.query_one("#session-info", DataTable)
         table.add_columns(*SESSION_INFO[0])
 
-        table = self.query_one("#general-info",DataTable)
+        table = self.query_one("#general-info", DataTable)
         table.add_columns(*GENERAL_INFO[0])
 
-        table = self.query_one("#route-info",DataTable)
+        table = self.query_one("#route-info", DataTable)
         table.add_columns(*ROUTES_INFO[0])
         
-        table = self.query_one("#candle-info",DataTable)
+        table = self.query_one("#candle-info", DataTable)
         table.add_columns(*CANDLES_INFO[0])
         
-        table = self.query_one("#watch-list",DataTable)
+        table = self.query_one("#watch-list", DataTable)
         table.add_columns(*WATCH_LIST_INFO[0])
         
-        table = self.query_one("#position-info",DataTable)
+        table = self.query_one("#position-info", DataTable)
         table.add_columns(*POSITIONS_INFO[0])
 
-        table = self.query_one("#order-info",DataTable)
+        table = self.query_one("#order-info", DataTable)
         table.add_columns(*ORDERS_INFO[0])
-
 
     def on_directory_tree_file_selected(
         self, event: DirectoryTree.FileSelected
@@ -244,7 +261,7 @@ class LiveScreen(Screen):
         self.query_one("#overview").update(f"Row Selected: {event.row_key.value}")
         if event.data_table.id == "session-info":
             self.default_id = event.row_key.value
-            
+
 # Custom Header class with horizontal buttons
 class CustomHeader(Container):
     def compose(self) -> ComposeResult:
@@ -277,17 +294,17 @@ class JesseLiveCLIApp(App):
         Binding("8", "change_session('7')", "Session 8", show=False),
         Binding("9", "change_session('8')", "Session 9", show=False),
         ("h", "switch_mode('home')", "Home"),
-        ("s", "switch_mode('strategies')", "Strategies"),
-        ("i", "switch_mode('import_candles')", "Import Candles"),
-        ("b", "switch_mode('backtest')", "Backtest"),
-        ("o", "switch_mode('optimization')", "Optimization"),
+        ("r", "switch_mode('routes')", "Routes"),
+        # ("i", "switch_mode('import_candles')", "Import Candles"),
+        # ("b", "switch_mode('backtest')", "Backtest"),
+        # ("o", "switch_mode('optimization')", "Optimization"),
         ("l", "switch_mode('live')", "Live"),
         ("q", "quit", "Quit"),        
     ]
     
     MODES = {
         "home": HomeScreen,
-        "strategies": StrategiesScreen,
+        "routes": RoutesScreen,
         "import_candles": ImportCandlesScreen,
         "backtest": BacktestScreen,
         "optimization": OptimizationScreen,
@@ -357,16 +374,16 @@ class JesseLiveCLIApp(App):
         self.websocket_task = asyncio.create_task(self.start_client(self.server_config))
         # self.start_client("server.yml")
         
-    async def on_datatable_row_selected(self, event: DataTable.RowSelected) -> None:
-        self.query_one("#overview").update(f"Row Selected: {event.row_key.value}")
-        if event.data_table.id == "session-info":
-            self.default_id = event.row_key.value
+    # async def on_datatable_row_selected(self, event: DataTable.RowSelected) -> None:
+    #     self.query_one("#overview").update(f"Row Selected: {event.row_key.value}")
+    #     if event.data_table.id == "session-info":
+    #         self.default_id = event.row_key.value
 
     async def on_route_select_message(self, message: RouteSelectMessage) -> None:
         # Handle the selected route file path
         print(f"Selected route file path: {message.file_path}")
-        self.display_error(message.file_path)
-        self.handle_info_log(message.file_path)
+        # self.display_error(message.file_path)
+        # self.handle_info_log(message.file_path)
 
         
     async def on_button_activated_message(self, message: ButtonActivatedMessage) -> None:

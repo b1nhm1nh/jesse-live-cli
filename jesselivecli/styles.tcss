@@ -13,7 +13,7 @@
   /* Use integer values for margin */
 }
 
-Screen {
+RoutesScreen {
   background: $surface-darken-1;
   &:inline {
     height: 50vh;
@@ -21,7 +21,16 @@ Screen {
 }
 
 #tree-view {
-  /* display: none; */
+  display: block;
+  scrollbar-gutter: stable;
+  overflow: auto;
+  width: auto;
+  height: auto;
+  dock: left;
+}
+
+#logtree-view {
+  display: none;
   scrollbar-gutter: stable;
   overflow: auto;
   width: auto;
@@ -31,7 +40,7 @@ Screen {
 
 #center-container {
   scrollbar-gutter: stable;
-  overflow: auto;
+  overflow: auto scroll;
   width: 100%;
   height: 100%;
 }
@@ -44,10 +53,52 @@ Screen {
   height: 100%;
 }
 
-CodeBrowser.-show-tree #tree-view {
+JesseLiveCLIApp.-show-tree #tree-view {
   display: block;
   max-width: 50%;
 }
+
+#button-view {
+  width: 100%;
+  height: 4;
+}
+
+#code-route-view {
+  overflow: auto scroll;
+  width: 100%;
+  height: auto;
+  /*min-width: 100%;*/
+  /*hatch: right $primary;*/
+}
+
+Button {
+    width: 16;
+    height: auto;
+}
+
+#start {
+    dock: left;
+}
+
+#stop {
+    dock: left;
+    display: none;
+}
+
+#reset {
+    dock: right;
+}
+
+#route-code {
+  width: auto;
+  height: auto;
+}
+
+
+#code {
+  width: auto;
+}
+
 
 #error {
   width: auto;
@@ -113,6 +164,3 @@ CodeBrowser.-show-tree #tree-view {
   /* hatch: right $primary; */
 }
 
-#code {
-  width: auto;
-}
