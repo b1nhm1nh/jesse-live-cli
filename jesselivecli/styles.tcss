@@ -106,10 +106,11 @@ Button {
 }
 
 #restart {
+    display: none  
 }
 
 #stop {
-
+    display: none  
 }
 
 #reset {
@@ -193,6 +194,17 @@ Button {
   width: 100%;
   height: auto;
 }
+#session-status {
+
+}
+
+#server-config {
+
+}
+#route-config {
+
+}
+
 
 #session-id {
   width: 100%;

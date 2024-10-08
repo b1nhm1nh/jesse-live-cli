@@ -1,7 +1,7 @@
 from rich.syntax import Syntax
 from rich.traceback import Traceback
 from textual.app import App, ComposeResult
-from textual.widgets import DirectoryTree, Footer, Header, Static, Button, Label, DataTable
+from textual.widgets import DirectoryTree, Footer, Header, Static, Button, Label, DataTable, Input
 from textual.screen import Screen
 from textual.reactive import Reactive
 from textual.containers import Container, Horizontal, VerticalScroll, HorizontalScroll, Vertical
@@ -23,6 +23,8 @@ from textual.binding import Binding
 
 from pathlib import Path
 from typing import Iterable
+import subprocess
+import re
 
 # Import screen classes from screens.py
 from jesselivecli.screens import (
@@ -113,6 +115,7 @@ class JesseLiveCLIApp(App):
     notification_api_key_id = ""
     routes_info = None
     exchange_info = None
+    mode = "home"
     
     def reset_config(self):
         self.exchange_info = None
@@ -216,76 +219,124 @@ class JesseLiveCLIApp(App):
             config = load_config(message.file_path)
             
             # Check if the configuration has an 'id' and update the session label
+            if config:
+                if 'id' in config:
+                    session_id = config['id']
+                    self.query_one("#route-config", Input).value = f"{message.file_path}"
+                else:
+                    self.query_one("#server-config", Input).value = f"{message.file_path}"
             if config and 'id' in config:
                 session_id = config['id']
                 active_workers = await self.get_active_workers()
                 if session_id in active_workers:
-                    self.query_one("#session", Label).update(f"Session ID: [{session_id}] is active")
-                    self.query_one("#start", Button).add_class("started")
-                    self.query_one("#restart", Button).add_class("started")
-                    self.query_one("#stop", Button).add_class("started")
+                    self.query_one("#session-status", Label).update("Session status: is active")
+                    # self.query_one("#start", Button).add_class("started")
+                    # self.query_one("#restart", Button).add_class("started")
+                    # self.query_one("#stop", Button).add_class("started")
+                    self.add_class("started")
                 else:
-                    self.query_one("#session", Label).update(f"Session ID: [{session_id}] is not active")
-                    self.query_one("#start", Button).remove_class("started")
-                    self.query_one("#restart", Button).remove_class("started")
-                    self.query_one("#stop", Button).remove_class("started")         
-
+                    self.query_one("#session-status", Label).update("Session status: is not active")                    
+                    # self.query_one("#start", Button).remove_class("started")
+                    # self.query_one("#restart", Button).remove_class("started")
+                    # self.query_one("#stop", Button).remove_class("started")
+                    self.remove_class("started")
         
     async def on_button_activated_message(self, message: ButtonActivatedMessage) -> None:
         if message.button_id == "home":
+            self.mode = "home"
             self.switch_mode("home")
         elif message.button_id == "strategies":
+            self.mode = "strategies"
             self.switch_mode("strategies")
         elif message.button_id == "import_candles":
+            self.mode = "import_candles"
             self.switch_mode("import_candles")
         elif message.button_id == "backtest":
+            self.mode = "backtest"
             self.switch_mode("backtest")
         elif message.button_id == "optimization":
+            self.mode = "optimization"
             self.switch_mode("optimization")
-        elif message.button_id == "live":
+        elif message.button_id == "log":
+            self.mode = "log"
             self.switch_mode("log")
 
             
-    async def restart_route(self):
-        session_id = self.query_one("#session", Label).text.split(": ")[1].strip("[]")
-        route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
-        
-        if len(session_id) and len(route_file):
-            restart_command = f"jesse-live-cli restart --server_config {self.server_config} --routes_config {route_file}"
-            self.logger.info(f"Executing restart command: {restart_command}")
-            try:
-                subprocess.run(restart_command, shell=True, check=True)
-                self.logger.info(f"Session {session_id} restarted successfully")
-            except subprocess.CalledProcessError as e:
-                self.logger.error(f"Failed to restart session {session_id}: {e}")
+    def restart_route(self):
+        server_config = self.query_one("#server-config", Input).value
+        route_file = self.query_one("#route-config", Input).value
 
-    async def stop_route(self):
-        session_id = self.query_one("#session", Label).text.split(": ")[1].strip("[]")
-        route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
-        
-        if len(session_id) and len(route_file):
+        self.info_log(f"Restarting : {server_config} {route_file}")
 
-            restart_command = f"jesse-live-cli stop --server_config {self.server_config} --routes_config {route_file}"
-            self.logger.info(f"Executing restart command: {restart_command}")
-            try:
-                subprocess.run(restart_command, shell=True, check=True)
-                self.logger.info(f"Session {session_id} restarted successfully")
-            except subprocess.CalledProcessError as e:
-                self.logger.error(f"Failed to restart session {session_id}: {e}")
-
-    async def start_route(self):
-        session_id = self.query_one("#session", Label).text.split(": ")[1].strip("[]")
-        route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
+        output = subprocess.run(["jesse-live-cli" ,"restart", "--server_config", server_config, "--routes_config", route_file], capture_output=True, text = True)
         
-        if len(session_id) and len(route_file):
-            restart_command = f"jesse-live-cli start --server_config {self.server_config} --routes_config {route_file}"
-            self.logger.info(f"Executing restart command: {restart_command}")
-            try:
-                subprocess.run(restart_command, shell=True, check=True)
-                self.logger.info(f"Session {session_id} restarted successfully")
-                asdasd
-            except subprocess.CalledProcessError as e:
-                self.logger.error(f"Failed to restart session {session_id}: {e}")
+        code_view = self.query_one("#route-code", Static)
+        try:
+            syntax = Syntax(str(output.stdout),
+                    line_numbers=True,
+                    word_wrap=True,
+                    indent_guides=True,
+                    theme="github-dark",
+                    lexer="text")            
+        except Exception:
+            code_view.update(Traceback(theme="github-dark", width=None))
+            self.sub_title = "ERROR"
+        else:
+            code_view.update(syntax)        
+        self.info_log(f"Restarted with return code {output.returncode}")
+        if output.returncode == 0:
+            self.switch_mode("home")    
+
+
+    def stop_route(self):
+        server_config = self.query_one("#server-config", Input).value
+        route_file = self.query_one("#route-config", Input).value
+
+        self.info_log(f"Stopping : {server_config} {route_file}")
+
+        output = subprocess.run(["jesse-live-cli" ,"stop", "--server_config", server_config, "--routes_config", route_file], capture_output=True, text = True)
+        
+        code_view = self.query_one("#route-code", Static)
+        try:
+            syntax = Syntax(str(output.stdout),
+                    line_numbers=True,
+                    word_wrap=True,
+                    indent_guides=True,
+                    theme="github-dark",
+                    lexer="text")            
+        except Exception:
+            code_view.update(Traceback(theme="github-dark", width=None))
+            self.sub_title = "ERROR"
+        else:
+            code_view.update(syntax)        
+        self.info_log(f"Stopped with return code {output.returncode}")
+      
+
+    def start_route(self):
+        server_config = self.query_one("#server-config", Input).value
+        route_file = self.query_one("#route-config", Input).value
+
+        self.info_log(f"Starting : {server_config} {route_file}")
+
+        output = subprocess.run(["jesse-live-cli" ,"start", "--server_config", server_config, "--routes_config", route_file], capture_output=True, text = True)
+        
+        code_view = self.query_one("#route-code", Static)
+        try:
+            syntax = Syntax(str(output.stdout),
+                    line_numbers=True,
+                    word_wrap=True,
+                    indent_guides=True,
+                    theme="github-dark",
+                    lexer="text")            
+        except Exception:
+            code_view.update(Traceback(theme="github-dark", width=None))
+            self.sub_title = "ERROR"
+        else:
+            code_view.update(syntax)        
+        self.info_log(f"Started with return code {output.returncode}")
+        if output.returncode == 0:
+            self.switch_mode("home")        
+
                 
     
     async def handle_message(self, message):
@@ -315,6 +366,8 @@ class JesseLiveCLIApp(App):
             event_trading_mode = event_info[0] if len(event_info) == 2 else ""
             
             if id != self.default_id:
+                return
+            if self.mode != "home":
                 return
 
             if event == 'info_log':
@@ -435,9 +488,12 @@ class JesseLiveCLIApp(App):
                 word_wrap=True,
                 indent_guides=True,
                 theme="github-dark",
-                lexer="text")   
-        self.query_one("#code").update(syntax)
-        self.query_one("#code").scroll_home(animate=False)
+                lexer="text")
+        try:   
+            self.query_one("#code").update(syntax)
+            self.query_one("#code").scroll_home(animate=False)
+        except Exception as e:
+            pass
         
     def handle_error_log(self, data):
         if self.initialized:
@@ -450,8 +506,11 @@ class JesseLiveCLIApp(App):
                 indent_guides=True,
                 theme="github-dark",
                 lexer="text")          
-        self.query_one("#code").update(syntax)
-        self.query_one("#code").scroll_home(animate=False)
+        try:   
+            self.query_one("#code").update(syntax)
+            self.query_one("#code").scroll_home(animate=False)
+        except Exception as e:
+            pass
 
     def handle_exception(self, data):
         self.handle_error_log(f"Exception: {data}")
@@ -614,16 +673,20 @@ class JesseLiveCLIApp(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Event handler called when a button is pressed."""
         if event.button.id == "start":
-            self.add_class("started")
-            self.info_log("Starting session")
-            self.restart_route()            
+            # self.add_class("started")
+            self.info_log("Starting session...")
+            self.start_route()   
+            # self.info_log("Session started")
         elif event.button.id == "restart":
-            self.add_class("started")
-            self.info_log("Restarting session")
+            # self.add_class("started")
+            self.info_log("Restarting session...")
             self.restart_route()            
+            # self.info_log("Session restarted!")
         elif event.button.id == "stop":
-            self.remove_class("started")
-            self.info_log("Stopping session")
+            # self.remove_class("started")
+            self.info_log("Stopping session...")
+            self.stop_route()
+            self.info_log("Session stopped!")
         elif event.button.id == "save":
             self.info_log("Saving session file")
             self.save_session_file()
@@ -633,6 +696,7 @@ async def run_live_cli(server_config: str, routes_config: str, default_id: str =
     try:
         app = JesseLiveCLIApp()
         app.init_config(server_config, routes_config, default_id)    
+
         await app.run_async()
     except Exception as e:
         print(f"An unexpected error occurred: {e}. Exiting...")

@@ -242,7 +242,7 @@ def stop(server_config: str, routes_config: str) -> None:
 def restart(server_config: str, routes_config: str) -> None:
     print("Restarting Jesse trading route")
     asyncio.run(stop_jesse(server_config, routes_config))
-    asyncio.sleep(2)
+    time.sleep(2)
     asyncio.run(start_jesse(server_config, routes_config))
 
 

@@ -1,6 +1,6 @@
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.widgets import DirectoryTree, Footer, Label, Button, Static, DataTable
+from textual.widgets import DirectoryTree, Footer, Label, Button, Static, DataTable, Input
 from textual.containers import Container, Horizontal, VerticalScroll, Vertical
 from textual.reactive import var
 from textual.message import Message
@@ -91,11 +91,15 @@ class RoutesScreen(Screen):
                         yield Button("Start", id="start", variant="success")
                         yield Button("Restart", id="restart", variant="success")
                         yield Button("Stop", id="stop", variant="error")
-                    yield Label("Session ID:", id="session")                        
-                    yield Label("Route file:", id="route-file")                        
+                    yield Label("Session status: ", id="session-status")
+                    yield Label("Server Config: ")
+                    yield Input("Select server config file", id="server-config")                        
+                    yield Label("Route Config: ")
+                    yield Input("Select route config file", id="route-config")                        
                     yield Label("LOG", id="error")
                     yield Static(id="route-code", expand=True)
-                    
+                    with VerticalScroll(id="code-view"):
+                        yield Static(id="code", expand=True)                    
         yield Footer()        
     def on_mount(self) -> None:
         self.query_one(DirectoryTree).focus()
@@ -120,7 +124,7 @@ class RoutesScreen(Screen):
         else:
             code_view.update(syntax)
             self.query_one("#code-route-view").scroll_home(animate=True)
-            self.query_one("#route-file", Label).update(f"Route file: [{event.path}]")
+            # self.query_one("#route-config", Input).value = f"{event.path}"
             self.sub_title = str(event.path)
             
     def send_file_path_to_main_app(self, event: DirectoryTree.FileSelected) -> None:
@@ -204,7 +208,11 @@ class HomeScreen(Screen):
     #     ("f", "toggle_files", "Toggle Files"),
     # ]
     show_tree = var(True)
-    
+    def on_screen_resume(self) -> None:
+        self.app.mode = "home"
+    def on_screen_suspend(self) -> None:
+        self.app.mode = ""
+        
     def watch_show_tree(self, show_tree: bool) -> None:
         self.set_class(show_tree, "-show-tree")
         logtree_view = self.query_one("#logtree-view", DirectoryTree)
