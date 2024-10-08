@@ -176,15 +176,14 @@ class JesseLiveCLIApp(App):
         self.websocket_task = asyncio.create_task(self.start_client(self.server_config))
         # self.start_client("server.yml")
         
-    # async def on_datatable_row_selected(self, event: DataTable.RowSelected) -> None:
-    #     self.query_one("#overview").update(f"Row Selected: {event.row_key.value}")
-    #     if event.data_table.id == "session-info":
-    #         self.default_id = event.row_key.value
-    async def get_active_workers(self):
+
+    async def get_active_workers(self, server_config: str = None):
         import aiohttp        
         from hashlib import sha256    
-            
-        cfg = load_config(self.server_config)
+        
+        if server_config is None:
+            server_config = self.server_config
+        cfg = load_config(server_config)
 
         data = cfg["server"]
         connection = generate_ws_url(data['host'], data['port'], data['password'])
@@ -227,18 +226,18 @@ class JesseLiveCLIApp(App):
                     self.query_one("#server-config", Input).value = f"{message.file_path}"
             if config and 'id' in config:
                 session_id = config['id']
-                active_workers = await self.get_active_workers()
+                
+                if self.query_one("#server-config", Input).value != "":
+                    server_config = self.query_one("#server-config", Input).value
+                else:
+                    server_config = None
+                
+                active_workers = await self.get_active_workers(server_config)
                 if session_id in active_workers:
                     self.query_one("#session-status", Label).update("Session status: is active")
-                    # self.query_one("#start", Button).add_class("started")
-                    # self.query_one("#restart", Button).add_class("started")
-                    # self.query_one("#stop", Button).add_class("started")
                     self.add_class("started")
                 else:
                     self.query_one("#session-status", Label).update("Session status: is not active")                    
-                    # self.query_one("#start", Button).remove_class("started")
-                    # self.query_one("#restart", Button).remove_class("started")
-                    # self.query_one("#stop", Button).remove_class("started")
                     self.remove_class("started")
         
     async def on_button_activated_message(self, message: ButtonActivatedMessage) -> None:
