@@ -23,7 +23,12 @@ DEFAULT_TIMEZONE = 'ASIA/BANGKOK'
 
 ### Create config files
 Make a folder for jesse-cli, it can be a seperate folder from Jesse-bot project.
-
+```
+fool jesse lib by:
+make a .env file
+mkdir storage
+mkdir strategies
+```
 Create a `server.yml` file in the root directory,
 
 ```yaml
