@@ -67,7 +67,7 @@ class SessionSelectMessage(Message):
 
 class FilteredDirectoryTree(DirectoryTree):
     def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
-        return [path for path in paths if path.suffix in [".json", ".yml", ".txt"]]
+        return [path for path in paths if path.suffix in [".json", ".yml", ".txt","."]]
 
 class RoutesScreen(Screen):
     BINDINGS = [

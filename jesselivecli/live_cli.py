@@ -178,38 +178,42 @@ class JesseLiveCLIApp(App):
         
 
     async def get_active_workers(self, server_config: str = None):
-        import aiohttp        
-        from hashlib import sha256    
-        
-        if server_config is None:
-            server_config = self.server_config
-        cfg = load_config(server_config)
+        try:
+            import aiohttp        
+            from hashlib import sha256    
+            
+            if server_config is None:
+                server_config = self.server_config
+            cfg = load_config(server_config)
 
-        data = cfg["server"]
-        connection = generate_ws_url(data['host'], data['port'], data['password'])
+            data = cfg["server"]
+            connection = generate_ws_url(data['host'], data['port'], data['password'])
 
-        host = f"http://{data['host']}:{data['port']}"
-        key = sha256(data['password'].encode('utf-8')).hexdigest()
-        headers = {
-                'Authorization': key,
-                'content-type': 'application/json'
-        }        
-        
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(f'{host}/active-workers', data="") as resp:
-                try:
-                    ret_data = await resp.text()
-                    workers = json.loads(ret_data)['data']
-                except aiohttp.ClientError as e:
-                    self.logger.error(f"Failed to fetch active workers: {e}")
-                    return []
-                except json.JSONDecodeError as e:
-                    self.logger.error(f"Failed to decode JSON response: {e}")
-                    return []
-                except Exception as e:
-                    self.logger.error(f"An unexpected error occurred: {e}")
-                    return []
-                return workers   
+            host = f"http://{data['host']}:{data['port']}"
+            key = sha256(data['password'].encode('utf-8')).hexdigest()
+            headers = {
+                    'Authorization': key,
+                    'content-type': 'application/json'
+            }        
+            
+            async with aiohttp.ClientSession(headers=headers) as session:
+                async with session.post(f'{host}/active-workers', data="") as resp:
+                    try:
+                        ret_data = await resp.text()
+                        workers = json.loads(ret_data)['data']
+                    except aiohttp.ClientError as e:
+                        self.logger.error(f"Failed to fetch active workers: {e}")
+                        return None
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"Failed to decode JSON response: {e}")
+                        return None
+                    except Exception as e:
+                        self.logger.error(f"An unexpected error occurred: {e}")
+                        return None
+                    return workers
+        except Exception as e:
+            self.logger.error(f"An unexpected error occurred: {e}")
+            return None
     
     async def on_route_select_message(self, message: RouteSelectMessage) -> None:
         # Check if the message is from RoutesScreen
@@ -233,12 +237,16 @@ class JesseLiveCLIApp(App):
                     server_config = None
                 
                 active_workers = await self.get_active_workers(server_config)
-                if session_id in active_workers:
-                    self.query_one("#session-status", Label).update("Session status: is active")
-                    self.add_class("started")
-                else:
-                    self.query_one("#session-status", Label).update("Session status: is not active")                    
+                if active_workers is None:
+                    self.query_one("#session-status", Label).update("Session status: Server connection error")                    
                     self.remove_class("started")
+                else:
+                    if session_id in active_workers:
+                        self.query_one("#session-status", Label).update("Session status: is active")
+                        self.add_class("started")
+                    else:
+                        self.query_one("#session-status", Label).update("Session status: is not active")                    
+                        self.remove_class("started")
         
     async def on_button_activated_message(self, message: ButtonActivatedMessage) -> None:
         if message.button_id == "home":
