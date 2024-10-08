@@ -3,6 +3,7 @@ Jesse Live Addon, control Jesse GUI from terminal
 
 Warning: This is a hack version on Jesse, use it as your own risk.
 
+This version compatible with Jesse v1.2.*
 ### Installing 
 
 clone this repo [https://github.com/b1nhm1nh/jesse-live-cli.git]
