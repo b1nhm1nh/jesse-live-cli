@@ -14,6 +14,13 @@ cd jesse-live-cli
 pip3 install -e .
 ```
 
+config timezone in config.py
+```
+# Define the default timezone for the application
+DEFAULT_TIMEZONE = 'ASIA/BANGKOK'
+```
+
+
 ### Create config files
 Make a folder for jesse-cli, it can be a seperate folder from Jesse-bot project.
 
