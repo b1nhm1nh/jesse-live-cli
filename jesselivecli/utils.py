@@ -6,7 +6,7 @@ import arrow
 from hashlib import sha256
 from datetime import datetime
 import pytz
-from jesselivecli.config import DEFAULT_TIMEZONE  # Import the default timezone
+from jesselivecli.config import get_default_config  # Import the default timezone
 
 def load_config(config_filename: str) -> Dict:
     str_filename = str(config_filename)
@@ -32,8 +32,10 @@ def generate_ws_url(host: str, port: str, password: str) -> str:
     hashed_local_pass = sha256(password.encode('utf-8')).hexdigest()
     return f"ws://{host}:{port}/ws?token={hashed_local_pass}"    
             
-def timestamp_to_date(timestamp: int, timezone: str = DEFAULT_TIMEZONE) -> str:
+def timestamp_to_date(timestamp: int, timezone: str = None) -> str:
     """Convert a timestamp to a formatted date string in the specified timezone."""
+    if timezone is None:
+        timezone = get_default_config()['DEFAULT_TIMEZONE']
     # Check if the timestamp is in milliseconds and convert to seconds
     timestamp = int(timestamp) / 1000
     

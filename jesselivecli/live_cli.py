@@ -26,6 +26,12 @@ from typing import Iterable
 import subprocess
 import re
 
+import os
+from dotenv import load_dotenv
+
+
+from jesselivecli.config import get_default_config
+
 # Import screen classes from screens.py
 from jesselivecli.screens import (
     HomeScreen,
@@ -656,12 +662,13 @@ class JesseLiveCLIApp(App):
             file_name = f"routes-{self.default_id}.json"
             file_path = os.path.join(session_dir, file_name)
 
+            default_config = get_default_config()
             # Prepare the data to be saved
             data = {
                 "id": self.default_id,
-                "exchange": "" if self.exchange_info is None else self.exchange_info,
-                "exchange_api_key_id": "" if self.exchange_api_key_id is None else self.exchange_api_key_id,
-                "notification_api_key_id": "" if self.notification_api_key_id is None else self.notification_api_key_id,
+                "exchange": "" if default_config['DEFAULT_EXCHANGE'] is None else default_config['DEFAULT_EXCHANGE'],
+                "exchange_api_key_id": "" if default_config['DEFAULT_EXCHANGE_API_KEY_ID'] is None else default_config['DEFAULT_EXCHANGE_API_KEY_ID'],
+                "notification_api_key_id": "" if default_config['DEFAULT_NOTIFICATION_API_KEY_ID'] is None else default_config['DEFAULT_NOTIFICATION_API_KEY_ID'],
                 "routes": self.routes_info,
                 "data_routes": []  # Assuming candles_info is a defined attribute
             }
@@ -701,6 +708,8 @@ class JesseLiveCLIApp(App):
 
 async def run_live_cli(server_config: str, routes_config: str, default_id: str = ""):
     try:
+        load_dotenv("./.env")
+        default_config = get_default_config()
         app = JesseLiveCLIApp()
         app.init_config(server_config, routes_config, default_id)    
 
