@@ -106,10 +106,20 @@ class JesseLiveCLIApp(App):
     initialized = False
     # default_id = ""
    
-    server_config = Reactive("")
-    routes_config = Reactive("")
-    default_id = Reactive("")
+    server_config = ""
+    routes_config = ""
+    default_id = ""
+    exchange_api_key_id = ""
+    notification_api_key_id = ""
+    routes_info = None
+    exchange_info = None
     
+    def reset_config(self):
+        self.exchange_info = None
+        self.routes_info = None
+        self.exchange_api_key_id = ""
+        self.notification_api_key_id = ""
+        
 
     def init_config(self, server_config, routes_config, default_id):
         self.server_config = server_config
@@ -122,9 +132,16 @@ class JesseLiveCLIApp(App):
         _id = int(id)
         _len = len(self.id_list)
         if _id < _len:
+            need_reset = False
+            if self.exchange_info != self.id_list[_id]:
+                need_reset = True
+                
             self.default_id = self.id_list[_id]
             self.id_index = _id
+            if need_reset:
+                self.reset_config()
             self.query_one("#session-id", Label).update(f"Session id {_id + 1}/{_len}: {self.default_id }")
+            
 
     def setup_logger(self):
         # Create logs directory if it doesn't exist
@@ -227,21 +244,18 @@ class JesseLiveCLIApp(App):
             self.switch_mode("optimization")
         elif message.button_id == "live":
             self.switch_mode("log")
-        elif message.button_id == "restart":
-            
-            self.restart_route()
+
             
     async def restart_route(self):
         session_id = self.query_one("#session", Label).text.split(": ")[1].strip("[]")
         route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
         
         if len(session_id) and len(route_file):
-            restart_command = f"jesse-live-cli restart --server_config {self.server_config} --route_config {route_file}"
+            restart_command = f"jesse-live-cli restart --server_config {self.server_config} --routes_config {route_file}"
             self.logger.info(f"Executing restart command: {restart_command}")
             try:
                 subprocess.run(restart_command, shell=True, check=True)
                 self.logger.info(f"Session {session_id} restarted successfully")
-                asdasd
             except subprocess.CalledProcessError as e:
                 self.logger.error(f"Failed to restart session {session_id}: {e}")
 
@@ -250,7 +264,8 @@ class JesseLiveCLIApp(App):
         route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
         
         if len(session_id) and len(route_file):
-            restart_command = f"jesse-live-cli stop --server_config {self.server_config} --route_config {route_file}"
+
+            restart_command = f"jesse-live-cli stop --server_config {self.server_config} --routes_config {route_file}"
             self.logger.info(f"Executing restart command: {restart_command}")
             try:
                 subprocess.run(restart_command, shell=True, check=True)
@@ -263,7 +278,7 @@ class JesseLiveCLIApp(App):
         route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
         
         if len(session_id) and len(route_file):
-            restart_command = f"jesse-live-cli start --server_config {self.server_config} --route_config {route_file}"
+            restart_command = f"jesse-live-cli start --server_config {self.server_config} --routes_config {route_file}"
             self.logger.info(f"Executing restart command: {restart_command}")
             try:
                 subprocess.run(restart_command, shell=True, check=True)
@@ -320,7 +335,10 @@ class JesseLiveCLIApp(App):
                     self.start_time = data['data']['started_at']    
                     
                 self.handle_general_info(data['data'])
+                if self.routes_info is None:
+                    self.routes_info = data['data']['routes']
                 self.handle_routes(data['data']['routes'])
+                
             elif event == 'current_candles':
                 self.candles = data['data']                
                 self.handle_candles(data['data'])
@@ -368,6 +386,9 @@ class JesseLiveCLIApp(App):
         
         for symbol, candle in candles.items():
             color = "[green]" if candle['open'] < candle['close'] else "[red]"
+            if self.exchange_info is not None:
+                exchange_info = symbol[0:symbol.find("-")]
+                
             symbol = symbol[symbol.find("-") + 1:]
             values = [
                 symbol,
@@ -391,6 +412,12 @@ class JesseLiveCLIApp(App):
                 table.add_row(*values)       
         except Exception as e:
             self.display_error(e)
+
+    def info_log(self, data):              
+        if not self.initialized:
+            return
+        self.logger.info(data) 
+        self.query_one("#error").update(f"LOG INFO: {data}")
 
     def handle_info_log(self, data):
                    
@@ -552,6 +579,54 @@ class JesseLiveCLIApp(App):
             command = await self.command_queue.get()
             await websocket.send(json.dumps(command))
             self.command_queue.task_done()
+            
+    def save_session_file(self):
+        import json
+        import os
+        
+        try:
+            session_dir ="./"
+            # Construct the file name using the session ID
+            file_name = f"routes-{self.default_id}.json"
+            file_path = os.path.join(session_dir, file_name)
+
+            # Prepare the data to be saved
+            data = {
+                "id": self.default_id,
+                "exchange": "" if self.exchange_info is None else self.exchange_info,
+                "exchange_api_key_id": "" if self.exchange_api_key_id is None else self.exchange_api_key_id,
+                "notification_api_key_id": "" if self.notification_api_key_id is None else self.notification_api_key_id,
+                "routes": self.routes_info,
+                "data_routes": []  # Assuming candles_info is a defined attribute
+            }
+
+            # Save the data to the fileq
+            with open(file_path, "w") as file:
+                json.dump(data, file, indent=2)
+        except Exception as e:
+            self.display_error(e)
+            self.info_log(f"Session file saved as {file_path} error {e}")
+        finally:
+            print(f"Session file saved as {file_path}")
+            self.info_log(f"Session file saved as {file_path}")
+        pass
+        
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Event handler called when a button is pressed."""
+        if event.button.id == "start":
+            self.add_class("started")
+            self.info_log("Starting session")
+            self.restart_route()            
+        elif event.button.id == "restart":
+            self.add_class("started")
+            self.info_log("Restarting session")
+            self.restart_route()            
+        elif event.button.id == "stop":
+            self.remove_class("started")
+            self.info_log("Stopping session")
+        elif event.button.id == "save":
+            self.info_log("Saving session file")
+            self.save_session_file()
 
 
 async def run_live_cli(server_config: str, routes_config: str, default_id: str = ""):
@@ -562,3 +637,5 @@ async def run_live_cli(server_config: str, routes_config: str, default_id: str =
     except Exception as e:
         print(f"An unexpected error occurred: {e}. Exiting...")
         exit()
+        
+        

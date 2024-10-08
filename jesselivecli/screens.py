@@ -93,6 +93,7 @@ class RoutesScreen(Screen):
                         yield Button("Stop", id="stop", variant="error")
                     yield Label("Session ID:", id="session")                        
                     yield Label("Route file:", id="route-file")                        
+                    yield Label("LOG", id="error")
                     yield Static(id="route-code", expand=True)
                     
         yield Footer()        
@@ -216,8 +217,11 @@ class HomeScreen(Screen):
             yield DirectoryTree(path, id="hometree-view")
             with Horizontal():
                 with Vertical(id="center-container"):
-                    yield Label("Session id: ", id="session-id")
-                    yield DataTable(id="session-info")
+                    with Horizontal(id="session-region"):
+                        with Vertical():
+                            yield DataTable(id="session-info")  
+                            yield Label("Session id: ", id="session-id")
+                        yield Button("Save Session", id="save", variant="success")                        
                     yield Label("Routes")
                     yield DataTable(id="route-info")
                     yield Label("Candles")

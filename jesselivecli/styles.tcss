@@ -93,6 +93,14 @@ Button {
     height: auto;
 }
 
+#session-region {
+  min-height: 4;
+}
+
+#start {
+    dock: right;
+}
+
 #start {
     dock: left;
 }
