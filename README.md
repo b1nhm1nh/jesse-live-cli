@@ -3,6 +3,7 @@ Jesse Live Addon, control Jesse GUI from terminal
 
 Warning: This is a hack version on Jesse, use it as your own risk.
 
+This version compatible with Jesse v1.2.*
 ### Installing 
 
 clone this repo [https://github.com/b1nhm1nh/jesse-live-cli.git]
@@ -13,9 +14,21 @@ cd jesse-live-cli
 pip3 install -e .
 ```
 
+config timezone in config.py
+```
+# Define the default timezone for the application
+DEFAULT_TIMEZONE = 'ASIA/BANGKOK'
+```
+
+
 ### Create config files
 Make a folder for jesse-cli, it can be a seperate folder from Jesse-bot project.
-
+```
+fool jesse lib by:
+make a .env file
+mkdir storage
+mkdir strategies
+```
 Create a `server.yml` file in the root directory,
 
 ```yaml
@@ -83,3 +96,7 @@ jesse-live-cli restart
 ### Limitation & known bugs
  - Jesse can run multiple Live session when using: `jesse-live-cli run`.
  - Multi sessions of Jesse Live Cli can connect to Jesse, including Jesse web, but only the last one will receive data. You should use `jesse-live-cli proxy --listen_port` if you want to multiple Live sessions concurrently.
+
+### Todo:
+- Save sessions into files.
+- Start / Stop session from UI.
