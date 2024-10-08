@@ -29,8 +29,16 @@ RoutesScreen {
   dock: left;
 }
 
-#logtree-view {
+#hometree-view {
   display: none;
+  scrollbar-gutter: stable;
+  overflow: auto;
+  width: auto;
+  height: auto;
+  dock: left;
+}
+
+#logtree-view {
   scrollbar-gutter: stable;
   overflow: auto;
   width: auto;
@@ -71,6 +79,15 @@ JesseLiveCLIApp.-show-tree #tree-view {
   /*hatch: right $primary;*/
 }
 
+
+#code-log-view {
+  overflow: auto scroll;
+  width: 100%;
+  height: auto;
+  /*min-width: 100%;*/
+  /*hatch: right $primary;*/
+}
+
 Button {
     width: 16;
     height: auto;
@@ -80,13 +97,31 @@ Button {
     dock: left;
 }
 
+#restart {
+}
+
 #stop {
-    dock: left;
-    display: none;
+
 }
 
 #reset {
     dock: right;
+}
+
+.started #start {
+    display: none
+}
+
+.started #restart {
+    display: block
+}
+
+.started #stop {
+    display: block
+}
+
+.started #reset {
+    visibility: hidden
 }
 
 #route-code {

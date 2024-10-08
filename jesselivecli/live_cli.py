@@ -24,243 +24,25 @@ from textual.binding import Binding
 from pathlib import Path
 from typing import Iterable
 
-
-# Define a custom message for button activation
-class ButtonActivatedMessage(Message):
-    def __init__(self, sender, button_id: str):
-        super().__init__()
-        self.button_id = button_id
-
-# Define a custom message for button activation
-class RouteSelectMessage(Message):
-    def __init__(self, sender, file_path: str):
-        super().__init__()
-        self.file_path = file_path        
-
-class SessionSelectMessage(Message):
-    def __init__(self, sender, session_id: str):
-        super().__init__()
-        self.session_id = session_id
-
-# Define separate screens for each button
-class HomeScreen(Screen):
-    def compose(self) -> ComposeResult:
-        yield Label("Home Content")
-        yield Footer()
-
-class FilteredDirectoryTree(DirectoryTree):
-    def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
-        return [path for path in paths if path.suffix in [".json", ".yml"]]
-
-class RoutesScreen(Screen):
-    BINDINGS = [
-        ("f", "toggle_files", "Toggle Files"),
-    ]
-    show_tree = var(True)
+# Import screen classes from screens.py
+from jesselivecli.screens import (
+    HomeScreen,
+    RoutesScreen,
+    ImportCandlesScreen,
+    BacktestScreen,
+    OptimizationScreen,
+    LogScreen,
+    ButtonActivatedMessage,
+    RouteSelectMessage,
+    SessionSelectMessage,
+    SESSION_INFO,
+    GENERAL_INFO,
+    ROUTES_INFO,
+    CANDLES_INFO,
+    POSITIONS_INFO,
+    ORDERS_INFO,WATCH_LIST_INFO
     
-    def watch_show_tree(self, show_tree: bool) -> None:
-        self.set_class(show_tree, "-show-tree")
-        tree_view = self.query_one("#tree-view", DirectoryTree)
-        tree_view.visible = show_tree  # Toggle visibility based on show_tree
-                
-    def compose(self) -> ComposeResult:
-        path = "./" 
-        yield Label("Routes Content")
-        with Container():
-            yield FilteredDirectoryTree(path, id="tree-view")
-            with Vertical(id="center-container"):
-                with VerticalScroll(id="code-route-view"):                    
-                    with Horizontal(id="button-view"):
-                        yield Button("Start", id="start", variant="success")
-                        yield Button("Stop", id="stop", variant="error")
-                    yield Static(id="route-code", expand=True)
-                    
-        yield Footer()        
-    def on_mount(self) -> None:
-        self.query_one(DirectoryTree).focus()
-
-    def on_directory_tree_file_selected(
-        self, event: DirectoryTree.FileSelected
-    ) -> None:
-        event.stop()
-        code_view = self.query_one("#route-code", Static)
-        try:
-            syntax = Syntax.from_path(
-                str(event.path),
-                line_numbers=True,
-                word_wrap=True,
-                indent_guides=True,
-                theme="github-dark",
-            )
-            self.send_file_path_to_main_app(event)
-        except Exception:
-            code_view.update(Traceback(theme="github-dark", width=None))
-            self.sub_title = "ERROR"
-        else:
-            code_view.update(syntax)
-            self.query_one("#code-route-view").scroll_home(animate=True)
-            self.sub_title = str(event.path)
-            
-    def send_file_path_to_main_app(self, event: DirectoryTree.FileSelected) -> None:
-        self.post_message(RouteSelectMessage(self, event.path))
-
-    def action_toggle_files(self) -> None:
-        self.show_tree = not self.show_tree
-
-class ImportCandlesScreen(Screen):
-    def compose(self) -> ComposeResult:
-        yield Label("Import Candles Content")
-        yield Footer()        
-
-class BacktestScreen(Screen):
-    def compose(self) -> ComposeResult:
-        yield Label("Backtest Content")
-        yield Footer()        
-
-class OptimizationScreen(Screen):
-    def compose(self) -> ComposeResult:
-        yield Label("Optimization Content")
-        yield Footer()        
-
-"""
-        table.add_column("Started time /\nNow")
-        table.add_column("Balance/ \nCurrent")
-        table.add_column("Debug /\nPaper", justify="center")
-        table.add_column("Infos /\nErrors", justify="center")
-        table.add_column("Win /\nTotal", justify="center")
-        table.add_column("PNL")
-        table.add_column("PNL %")
-"""
-SESSION_INFO = [
-    ("No","Session ID"),
-]
-GENERAL_INFO = [
-    ("Info ", "Data"),
-    ("Started time:", ""),
-    ("Current time:", ""),
-    ("Current / Balance", ""),
-    ("Win / Total", ""),
-    ("PNL", ""),
-    ("PNL %", ""),
-    ("Debug / Paper", ""),
-    ("Infos / Errors", ""),
-]  
-ROUTES_INFO = [
-    ("Symbol", "Timeframe", "Strategy"),
-]  
-
-CANDLES_INFO = [
-    ("Symbol", "Open", "Close", "High", "Low", "Volume"),
-]
-
-POSITIONS_INFO = [
-    ("Symbol", "Qty", "Entry", "Price", "PNL", "PNL %"),
-]  
-
-ORDERS_INFO = [
-    ("Created", "Symbol", "Type", "Side", "Price", "QTY", "Status"),
-    
-]
-
-WATCH_LIST_INFO = [
-    ("Info", "Data"),
-    
-]
-            
-        
-class LiveScreen(Screen):
-    BINDINGS = [
-        ("f", "toggle_files", "Toggle Files"),
-    ]
-    show_tree = var(True)
-    
-    def watch_show_tree(self, show_tree: bool) -> None:
-        self.set_class(show_tree, "-show-tree")
-        logtree_view = self.query_one("#logtree-view", DirectoryTree)
-        logtree_view.visible = show_tree  # Toggle visibility based on show_tree
-                
-    def compose(self) -> ComposeResult:
-        path = "./logs/" 
-        yield Label("Live Content")
-        with Container():
-            yield DirectoryTree(path, id="logtree-view")
-            with Horizontal():
-                with Vertical(id="center-container"):
-                    yield Label("Session id: ", id="session-id")
-                    yield DataTable(id="session-info")
-                    yield Label("Routes")
-                    yield DataTable(id="route-info")
-                    yield Label("Candles")
-                    yield DataTable(id="candle-info")
-                    yield Label("Positions")
-                    yield DataTable(id="position-info")
-                    yield Label("Orders")
-                    yield DataTable(id="order-info")
-                    yield Label("LOG", id="error")
-                    with VerticalScroll(id="code-view"):
-                        yield Static(id="code", expand=True)
-                    yield Label("Overview", id="overview")
-                    yield DataTable(id="general-info")
-                    yield Label("Watch List")
-                    yield DataTable(id="watch-list")
-        yield Footer()        
-        
-    def on_mount(self) -> None:
-        self.query_one(DirectoryTree).focus()
-        
-        table = self.query_one("#session-info", DataTable)
-        table.add_columns(*SESSION_INFO[0])
-
-        table = self.query_one("#general-info", DataTable)
-        table.add_columns(*GENERAL_INFO[0])
-
-        table = self.query_one("#route-info", DataTable)
-        table.add_columns(*ROUTES_INFO[0])
-        
-        table = self.query_one("#candle-info", DataTable)
-        table.add_columns(*CANDLES_INFO[0])
-        
-        table = self.query_one("#watch-list", DataTable)
-        table.add_columns(*WATCH_LIST_INFO[0])
-        
-        table = self.query_one("#position-info", DataTable)
-        table.add_columns(*POSITIONS_INFO[0])
-
-        table = self.query_one("#order-info", DataTable)
-        table.add_columns(*ORDERS_INFO[0])
-
-    def on_directory_tree_file_selected(
-        self, event: DirectoryTree.FileSelected
-    ) -> None:
-        event.stop()
-        code_view = self.query_one("#code", Static)
-        try:
-            syntax = Syntax.from_path(
-                str(event.path),
-                line_numbers=True,
-                word_wrap=False,
-                indent_guides=True,
-                theme="github-dark",
-            )
-        except Exception:
-            code_view.update(Traceback(theme="github-dark", width=None))
-            self.sub_title = "ERROR"
-        else:
-            code_view.update(syntax)
-            self.query_one("#code-view").scroll_home(animate=False)
-            self.sub_title = str(event.path)
-    
-    def watch_show_tree(self, show_tree: bool) -> None:
-        """Called when show_tree is modified."""
-        self.set_class(show_tree, "-show-tree")
-        
-    def action_toggle_files(self) -> None:
-        self.show_tree = not self.show_tree
-
-    async def on_datatable_row_selected(self, event: DataTable.RowSelected) -> None:
-        self.query_one("#overview").update(f"Row Selected: {event.row_key.value}")
-        if event.data_table.id == "session-info":
-            self.default_id = event.row_key.value
+)
 
 # Custom Header class with horizontal buttons
 class CustomHeader(Container):
@@ -271,7 +53,7 @@ class CustomHeader(Container):
             Button("Import Candles", id="import_candles"),
             Button("Backtest", id="backtest"),
             Button("Optimization", id="optimization"),
-            Button("Live", id="live"),
+            Button("Log", id="log"),
             id="main_buttons"
         )
         yield buttons
@@ -298,7 +80,7 @@ class JesseLiveCLIApp(App):
         # ("i", "switch_mode('import_candles')", "Import Candles"),
         # ("b", "switch_mode('backtest')", "Backtest"),
         # ("o", "switch_mode('optimization')", "Optimization"),
-        ("l", "switch_mode('live')", "Live"),
+        ("l", "switch_mode('log')", "Log"),
         ("q", "quit", "Quit"),        
     ]
     
@@ -308,7 +90,7 @@ class JesseLiveCLIApp(App):
         "import_candles": ImportCandlesScreen,
         "backtest": BacktestScreen,
         "optimization": OptimizationScreen,
-        "live": LiveScreen
+        "log": LogScreen
     }
 
     websocket: Optional[websockets.WebSocketClientProtocol] = None
@@ -366,7 +148,7 @@ class JesseLiveCLIApp(App):
         yield Footer()
 
     async def on_mount(self) -> None:
-        self.switch_mode("live")
+        self.switch_mode("home")
         
     async def on_load(self):
         self.setup_logger()
@@ -378,12 +160,58 @@ class JesseLiveCLIApp(App):
     #     self.query_one("#overview").update(f"Row Selected: {event.row_key.value}")
     #     if event.data_table.id == "session-info":
     #         self.default_id = event.row_key.value
+    async def get_active_workers(self):
+        import aiohttp        
+        from hashlib import sha256    
+            
+        cfg = load_config(self.server_config)
 
+        data = cfg["server"]
+        connection = generate_ws_url(data['host'], data['port'], data['password'])
+
+        host = f"http://{data['host']}:{data['port']}"
+        key = sha256(data['password'].encode('utf-8')).hexdigest()
+        headers = {
+                'Authorization': key,
+                'content-type': 'application/json'
+        }        
+        
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.post(f'{host}/active-workers', data="") as resp:
+                try:
+                    ret_data = await resp.text()
+                    workers = json.loads(ret_data)['data']
+                except aiohttp.ClientError as e:
+                    self.logger.error(f"Failed to fetch active workers: {e}")
+                    return []
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Failed to decode JSON response: {e}")
+                    return []
+                except Exception as e:
+                    self.logger.error(f"An unexpected error occurred: {e}")
+                    return []
+                return workers   
+    
     async def on_route_select_message(self, message: RouteSelectMessage) -> None:
-        # Handle the selected route file path
-        print(f"Selected route file path: {message.file_path}")
-        # self.display_error(message.file_path)
-        # self.handle_info_log(message.file_path)
+        # Check if the message is from RoutesScreen
+        if isinstance(self.screen, RoutesScreen):
+            # Load configuration from the selected file
+            config = load_config(message.file_path)
+            
+            # Check if the configuration has an 'id' and update the session label
+            if config and 'id' in config:
+                session_id = config['id']
+                active_workers = await self.get_active_workers()
+                if session_id in active_workers:
+                    self.query_one("#session", Label).update(f"Session ID: [{session_id}] is active")
+                    self.query_one("#start", Button).add_class("started")
+                    self.query_one("#restart", Button).add_class("started")
+                    self.query_one("#stop", Button).add_class("started")
+                else:
+                    self.query_one("#session", Label).update(f"Session ID: [{session_id}] is not active")
+                    self.query_one("#start", Button).remove_class("started")
+                    self.query_one("#restart", Button).remove_class("started")
+                    self.query_one("#stop", Button).remove_class("started")         
 
         
     async def on_button_activated_message(self, message: ButtonActivatedMessage) -> None:
@@ -398,8 +226,53 @@ class JesseLiveCLIApp(App):
         elif message.button_id == "optimization":
             self.switch_mode("optimization")
         elif message.button_id == "live":
-            self.switch_mode("live")
+            self.switch_mode("log")
+        elif message.button_id == "restart":
+            
+            self.restart_route()
+            
+    async def restart_route(self):
+        session_id = self.query_one("#session", Label).text.split(": ")[1].strip("[]")
+        route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
+        
+        if len(session_id) and len(route_file):
+            restart_command = f"jesse-live-cli restart --server_config {self.server_config} --route_config {route_file}"
+            self.logger.info(f"Executing restart command: {restart_command}")
+            try:
+                subprocess.run(restart_command, shell=True, check=True)
+                self.logger.info(f"Session {session_id} restarted successfully")
+                asdasd
+            except subprocess.CalledProcessError as e:
+                self.logger.error(f"Failed to restart session {session_id}: {e}")
 
+    async def stop_route(self):
+        session_id = self.query_one("#session", Label).text.split(": ")[1].strip("[]")
+        route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
+        
+        if len(session_id) and len(route_file):
+            restart_command = f"jesse-live-cli stop --server_config {self.server_config} --route_config {route_file}"
+            self.logger.info(f"Executing restart command: {restart_command}")
+            try:
+                subprocess.run(restart_command, shell=True, check=True)
+                self.logger.info(f"Session {session_id} restarted successfully")
+            except subprocess.CalledProcessError as e:
+                self.logger.error(f"Failed to restart session {session_id}: {e}")
+
+    async def start_route(self):
+        session_id = self.query_one("#session", Label).text.split(": ")[1].strip("[]")
+        route_file = self.query_one("#route-file", Label).text.split(": ")[1].strip("[]")
+        
+        if len(session_id) and len(route_file):
+            restart_command = f"jesse-live-cli start --server_config {self.server_config} --route_config {route_file}"
+            self.logger.info(f"Executing restart command: {restart_command}")
+            try:
+                subprocess.run(restart_command, shell=True, check=True)
+                self.logger.info(f"Session {session_id} restarted successfully")
+                asdasd
+            except subprocess.CalledProcessError as e:
+                self.logger.error(f"Failed to restart session {session_id}: {e}")
+                
+    
     async def handle_message(self, message):
         try:
             # Process incoming messages and update state
@@ -457,7 +330,6 @@ class JesseLiveCLIApp(App):
             elif event == 'watch_list':
                 self.handle_watch_list(data['data'])
             elif event == 'orders':
-                self.orders = data['data']
                 self.handle_orders(data['data'])
             else:
                 self.handle_info_log(data)

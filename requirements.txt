@@ -1,4 +1,6 @@
-#asyncio
+asyncio~=3.4.3
+aiohttp~=3.9.5
 click~=8.0.3
 rich~=13.7.1
 PyYAML~=6.0.2
+textual~=0.82.0

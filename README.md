@@ -14,134 +14,27 @@ pip3 install -e .
 ```
 
 ### Create config files
-Make a folder for jesse-cli, it can be a seperate folder of Jesse project.
+Make a folder for jesse-cli, it can be a seperate folder from Jesse-bot project.
 
 Create a `server.yml` file in the root directory,
 
 ```yaml
+refer to server.example.yml & server.example.json
 ---
-server:
-  host: 'localhost'
-  port: 9000
-  password: 'test'
-config:
-  logging:
-    order_cancellation: true
-    position_opened: true
-    position_reduced: true
-    position_closed: true
-    order_execution: true
-    order_submission: true
-    trading_candles: true
-    balance_update: true
-    position_increased: true
-    shorter_period_candles: false
-  exchanges:
-    Binance Perpetual Futures Testnet:
-      futures_leverage: '10'
-      name: Binance Perpetual Futures Testnet
-      balance: 1000
-      settlement_currency: USDT
-      futures_leverage_mode: cross
-      fee: 0.006
-    Binance Perpetual Futures:
-      futures_leverage: '10'
-      name: Binance Perpetual Futures
-      balance: 1000
-      settlement_currency: USDT
-      futures_leverage_mode: cross
-      fee: 0.006
-    Bybit USDT Perpetual:
-      futures_leverage: 2
-      name: Bybit USDT Perpetual
-      balance: 10000
-      settlement_currency: USDT
-      futures_leverage_mode: cross
-      fee: 0.001
-    Bitget USDT Perpetual:
-      futures_leverage: 2
-      name: Bitget USDT Perpetual
-      balance: 10000
-      futures_leverage_mode: cross
-      fee: 0.0006
-    Binance Spot:
-      futures_leverage: 2
-      name: Binance Spot
-      balance: 10000
-      settlement_currency: USDT
-      futures_leverage_mode: cross
-      fee: 0.001
-    Bybit USDT Perpetual Testnet:
-      futures_leverage: 2
-      name: Bybit USDT Perpetual Testnet
-      balance: 10000
-      settlement_currency: USDT
-      futures_leverage_mode: cross
-      fee: 0.001
-    Binance US Spot:
-      futures_leverage: 2
-      name: Binance US Spot
-      balance: 10000
-      settlement_currency: USDT
-      futures_leverage_mode: cross
-      fee: 0.001
-  persistency: true
-  notifications:
-    enabled: true
-    position_report_timeframe: 1h
-    events:
-      executed_orders: true
-      errors: true
-      submitted_orders: false
-      terminated_session: true
-      started_session: true
-      opened_position: true
-      cancelled_orders: false
-      updated_position: true
-  warm_up_candles: 200
-  generate_candles_from_1m: false
-debug_mode: true
-paper_mode: true
+
 ```
 
 
 Create a `routes.yml` file in the root directory:
 
 ```yaml
-routes:
-- exchange: Binance Perpetual Futures
-  symbol: ETH-USDT
-  timeframe: 1m
-  strategy: ExampleStrategy
-- exchange: Binance Perpetual Futures
-  symbol: BNB-USDT
-  timeframe: 1m
-  strategy: ExampleStrategy
-extra_routes:
-- exchange: Binance Perpetual Futures
-  symbol: ETH-USDT
-  timeframe: 5m
-- exchange: Binance Perpetual Futures
-  symbol: ETH-USDT
-  timeframe: 15m
-- exchange: Binance Perpetual Futures
-  symbol: ETH-USDT
-  timeframe: 30m
-- exchange: Binance Perpetual Futures
-  symbol: BNB-USDT
-  timeframe: 5m
-- exchange: Binance Perpetual Futures
-  symbol: BNB-USDT
-  timeframe: 15m
-- exchange: Binance Perpetual Futures
-  symbol: BNB-USDT
-  timeframe: 30m  
+refer to routes.example.yml & routes.example.json
 ```
 
-Jesse-live-cli will loads `server.yml` and `routers.yml` on default, we can specify config files with `--server_yaml`, `--server_json`, `--routes_yaml`, `--routes_json` options
+Jesse-live-cli will loads `server.yml` and `routers.yml` on default, we can specify config files with `--server_config`, `--routes_config`  options
 
 ```
-jesse-live-cli start --server_json server.json --routes_json routes.json
+jesse-live-cli start --server_config server.json --routes_config routes.json
 
 ```
 
@@ -152,7 +45,8 @@ Start Jesse
 jesse run
 ```
 
-Start a Websocket proxy server first
+Start a Websocket proxy server: Make a websocket proxy in front of Jesse port. You should modify your server config to connect to proxy port. jesse-live-cli still can connect to Jesse directly
+
 ```
 jesse-live-cli proxy --listen_port
 ```
@@ -180,7 +74,12 @@ Restart Live mode based on `routes` config
 jesse-live-cli restart
 ```
 
+### New Features
+- cli proxy mode: a websocket proxy in front of Jesse to forward data to all connected clients, with auto reconnect 
+- Session Management: Switch between multiple sessions using number keys (1-9).
+- Log Viewer: View logs
+- Route Management: Display and manage routes. Stop / Start Live session it not implemented 
 
 ### Limitation & known bugs
- - Jesse can run multiple Live session when using: `jesse-live-cli start`.
- - Multi sessions of Jesse Live Cli can connect to Jesse, including Jesse web, but only the last one will receive data.
+ - Jesse can run multiple Live session when using: `jesse-live-cli run`.
+ - Multi sessions of Jesse Live Cli can connect to Jesse, including Jesse web, but only the last one will receive data. You should use `jesse-live-cli proxy --listen_port` if you want to multiple Live sessions concurrently.
